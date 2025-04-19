@@ -1,7 +1,6 @@
 package main
 
 import (
-	"io"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -31,14 +30,11 @@ func getFullURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	vars := mux.Vars(r)
-	shortURL := vars["shorturl"]
+	//vars := mux.Vars(r)
+	//shortURL := vars["shorturl"]
 
-	if shortURL == "EwHXdJfB" {
-		w.Write([]byte("https://practicum.yandex.ru/"))
-	}
-
-	w.WriteHeader(http.StatusOK)
+	w.Header().Add("Location", "https://practicum.yandex.ru/")
+	w.WriteHeader(http.StatusTemporaryRedirect)
 }
 
 // Укоротить адрес
@@ -49,17 +45,21 @@ func shortenURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Читаем тело запроса
-	fullURL, err := io.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, "Failed to read request body", http.StatusBadRequest)
+	if r.Header.Get("Content-Type") != "text/plain" {
+		// разрешаем только Content-Type: text/plain
+		w.WriteHeader(http.StatusUnsupportedMediaType)
 		return
 	}
-	defer r.Body.Close()
 
-	if string(fullURL) == "https://practicum.yandex.ru/" {
-		w.Write([]byte("http://localhost:8080/EwHXdJfB"))
-	}
+	// Читаем тело запроса
+	// fullURL, err := io.ReadAll(r.Body)
+	// if err != nil {
+	// 	http.Error(w, "Failed to read request body", http.StatusBadRequest)
+	// 	return
+	// }
+	// defer r.Body.Close()
 
-	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("http://localhost:8080/EwHXdJfB"))
+	w.Header().Add("Content-Type", "text/plain")
+	w.WriteHeader(http.StatusCreated)
 }
