@@ -17,14 +17,14 @@ func main() {
 // функция run будет полезна при инициализации зависимостей сервера перед запуском
 func run() error {
 	r := mux.NewRouter()
-	r.HandleFunc("/{shorturl}", getFullUrl).Methods("GET")
-	r.HandleFunc("/", shortenUrl).Methods("POST")
+	r.HandleFunc("/{shorturl}", getFullURL).Methods("GET")
+	r.HandleFunc("/", shortenURL).Methods("POST")
 
 	return http.ListenAndServe(":8080", r)
 }
 
 // Получить полный адрес
-func getFullUrl(w http.ResponseWriter, r *http.Request) {
+func getFullURL(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		// разрешаем только Get-запросы
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -32,9 +32,9 @@ func getFullUrl(w http.ResponseWriter, r *http.Request) {
 	}
 
 	vars := mux.Vars(r)
-	shortUrl := vars["shorturl"]
+	shortURL := vars["shorturl"]
 
-	if shortUrl == "EwHXdJfB" {
+	if shortURL == "EwHXdJfB" {
 		w.Write([]byte("https://practicum.yandex.ru/"))
 	}
 
@@ -42,7 +42,7 @@ func getFullUrl(w http.ResponseWriter, r *http.Request) {
 }
 
 // Укоротить адрес
-func shortenUrl(w http.ResponseWriter, r *http.Request) {
+func shortenURL(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		// разрешаем только POST-запросы
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -50,14 +50,14 @@ func shortenUrl(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Читаем тело запроса
-	fullUrl, err := io.ReadAll(r.Body)
+	fullURL, err := io.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, "Failed to read request body", http.StatusBadRequest)
 		return
 	}
 	defer r.Body.Close()
 
-	if string(fullUrl) == "https://practicum.yandex.ru/" {
+	if string(fullURL) == "https://practicum.yandex.ru/" {
 		w.Write([]byte("http://localhost:8080/EwHXdJfB"))
 	}
 
