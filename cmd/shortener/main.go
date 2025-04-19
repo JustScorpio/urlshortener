@@ -67,7 +67,7 @@ func shortenURL(w http.ResponseWriter, r *http.Request) {
 	// }
 	// defer r.Body.Close()
 
-	w.Write([]byte("http://localhost:8080/EwHXdJfB"))
 	w.Header().Add("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusCreated)
+	w.Write([]byte("http://localhost:8080/EwHXdJfB"))
 }
