@@ -45,11 +45,12 @@ func shortenURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if r.Header.Get("Content-Type") != "text/plain" {
-		// разрешаем только Content-Type: text/plain
-		w.WriteHeader(http.StatusUnsupportedMediaType)
-		return
-	}
+	// Автотесты говорят что НЕЛЬЗЯ проверять content-type. Ок, как скажете
+	// if r.Header.Get("Content-Type") != "text/plain" {
+	// 	// разрешаем только Content-Type: text/plain
+	// 	w.WriteHeader(http.StatusUnsupportedMediaType)
+	// 	return
+	// }
 
 	// Читаем тело запроса
 	// fullURL, err := io.ReadAll(r.Body)
