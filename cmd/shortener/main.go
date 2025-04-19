@@ -1,7 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/gorilla/mux"
 )
@@ -16,7 +18,7 @@ func main() {
 // функция run будет полезна при инициализации зависимостей сервера перед запуском
 func run() error {
 	r := mux.NewRouter()
-	r.HandleFunc("/{shorturl}", getFullURL).Methods("GET")
+	r.HandleFunc("/", getFullURL).Methods("GET")
 	r.HandleFunc("/", shortenURL).Methods("POST")
 
 	return http.ListenAndServe(":8080", r)
@@ -24,14 +26,19 @@ func run() error {
 
 // Получить полный адрес
 func getFullURL(w http.ResponseWriter, r *http.Request) {
+	fmt.Printf(r.URL.Path)
 	if r.Method != http.MethodGet {
 		// разрешаем только Get-запросы
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 
-	//vars := mux.Vars(r)
-	//shortURL := vars["shorturl"]
+	shortURL := strings.TrimPrefix(r.URL.Path, "/")
+
+	if shortURL == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
 
 	w.Header().Add("Location", "https://practicum.yandex.ru/")
 	w.WriteHeader(http.StatusTemporaryRedirect)
