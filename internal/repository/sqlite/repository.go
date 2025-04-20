@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 
 	"github.com/JustScorpio/urlshortener/internal/models"
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 )
 
 //go:embed config.json
@@ -35,7 +35,7 @@ func NewSQLiteShURLRepository() (*SQLiteShURLRepository, error) {
 	}
 
 	// Открываем (или создаем) базу данных
-	db, err := sql.Open("sqlite3", conf.Path)
+	db, err := sql.Open("sqlite", "file:"+conf.Path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
@@ -50,7 +50,7 @@ func NewSQLiteShURLRepository() (*SQLiteShURLRepository, error) {
 		return nil, fmt.Errorf("failed to set pragmas: %w", err)
 	}
 
-	// Создаем таблицу (синтаксис SQLite немного отличается)
+	// Создаем таблицу
 	_, err = db.Exec(`
 		CREATE TABLE IF NOT EXISTS shurls (
 			token TEXT PRIMARY KEY,

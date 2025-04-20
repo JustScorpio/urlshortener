@@ -26,6 +26,8 @@ func (h *ShURLHandler) GetFullURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// vars := mux.Vars(r)
+	// token := vars["token"] // Получаем токен из URL
 	token := strings.TrimPrefix(r.URL.Path, "/")
 
 	if token == "" {
@@ -67,18 +69,35 @@ func (h *ShURLHandler) ShortenURL(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
-	//Добавление shurl в БД
-	generate, _ := nanoid.CustomASCII("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", 8)
-	token := generate() // Пример: "EwHXdJfB"
-
-	shurl := models.ShURL{
-		Token:   token,
-		LongURL: string(longURL),
-	}
-	err = h.service.Create(&shurl)
+	// Проверяем наличие урла в БД
+	existedURLs, err := h.service.GetAll()
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Failed to check existed urls: "+err.Error(), http.StatusBadRequest)
 		return
+	}
+
+	token := ""
+	for _, existedURL := range existedURLs {
+		if existedURL.LongURL == string(longURL) {
+			token = existedURL.Token
+			break
+		}
+	}
+
+	if token == "" {
+		//Добавление shurl в БД
+		generate, _ := nanoid.CustomASCII("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", 8)
+		token = generate() // Пример: "EwHXdJfB"
+
+		shurl := models.ShURL{
+			Token:   token,
+			LongURL: string(longURL),
+		}
+		err = h.service.Create(&shurl)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
 
 	w.Header().Add("Content-Type", "text/plain")

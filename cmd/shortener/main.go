@@ -35,7 +35,7 @@ func run() error {
 	shURLHandler := handlers.NewShURLHandler(shURLService)
 
 	r := mux.NewRouter()
-	r.HandleFunc("/", shURLHandler.GetFullURL).Methods("GET")
+	r.HandleFunc("/{token}", shURLHandler.GetFullURL).Methods("GET")
 	r.HandleFunc("/", shURLHandler.ShortenURL).Methods("POST")
 
 	return http.ListenAndServe(":8080", r)
