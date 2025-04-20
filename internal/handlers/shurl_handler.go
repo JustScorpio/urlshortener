@@ -1,13 +1,13 @@
 package handlers
 
 import (
-	"encoding/json"
 	"io"
 	"net/http"
 	"strings"
 
 	"github.com/JustScorpio/urlshortener/internal/models"
 	"github.com/JustScorpio/urlshortener/internal/services"
+	"github.com/jaevor/go-nanoid"
 )
 
 type ShURLHandler struct {
@@ -16,17 +16,6 @@ type ShURLHandler struct {
 
 func NewShURLHandler(service *services.ShURLService) *ShURLHandler {
 	return &ShURLHandler{service: service}
-}
-
-func (h *ShURLHandler) GetAll(w http.ResponseWriter, r *http.Request) {
-	entities, err := h.service.GetAll()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(entities)
 }
 
 // Получить полный адрес
@@ -73,15 +62,17 @@ func (h *ShURLHandler) ShortenURL(w http.ResponseWriter, r *http.Request) {
 	//Читаем тело запроса
 	longURL, err := io.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, "Failed to read request body", http.StatusBadRequest)
+		http.Error(w, "Failed to read request body: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 	defer r.Body.Close()
 
 	//Добавление shurl в БД
-	// Получение сущности из сервиса
+	generate, _ := nanoid.CustomASCII("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", 8)
+	token := generate() // Пример: "EwHXdJfB"
+
 	shurl := models.ShURL{
-		Token:   "ЗАТЫЧКА",
+		Token:   token,
 		LongURL: string(longURL),
 	}
 	err = h.service.Create(&shurl)

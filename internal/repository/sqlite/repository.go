@@ -5,74 +5,124 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 
+	"github.com/JustScorpio/urlshortener/internal/models"
 	_ "github.com/mattn/go-sqlite3"
 )
 
 //go:embed config.json
 var configContent []byte
 
-type DbConfiguration struct {
-	Host     string
-	User     string
-	Password string
-	DbName   string
-	Port     string
-	SslMode  string
+type DBConfiguration struct {
+	Path string `json:"path"`
 }
 
-func NewDB() (*sql.DB, error) {
-	var conf DbConfiguration
+type SQLiteShURLRepository struct {
+	DB *sql.DB
+}
+
+func NewSQLiteShURLRepository() (*SQLiteShURLRepository, error) {
+	var conf DBConfiguration
 	if err := json.Unmarshal(configContent, &conf); err != nil {
 		return nil, fmt.Errorf("failed to decode config: %w", err)
 	}
 
-	var defaultConnString = fmt.Sprintf("host=%s user=%s password=%s dbname=postgres port=%s sslmode=%s", conf.Host, conf.User, conf.Password, conf.Port, conf.SslMode)
-	defaultDB, err := sql.Open("postgres", defaultConnString)
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to default database: %w", err)
-	}
-	defer defaultDB.Close()
-
-	// // Проверка и создание базы данных
-	// var dbExists bool
-	// err = defaultDB.QueryRow("SELECT EXISTS (SELECT 1 FROM pg_database WHERE datname = $1)", conf.DbName).Scan(&dbExists)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("failed to check database existence: %w", err)
-	// }
-
-	// // Создание базы данных, если она не существует
-	// if !dbExists {
-	// 	_, err = defaultDB.Exec(fmt.Sprintf("CREATE DATABASE %s", conf.DbName))
-	// 	if err != nil {
-	// 		return nil, fmt.Errorf("failed to create database: %w", err)
-	// 	}
-	// }
-
-	// Подключение к созданной базе данных
-	connString := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=%s", conf.Host, conf.User, conf.Password, conf.DbName, conf.Port, conf.SslMode)
-	db, err := sql.Open("postgres", connString)
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to database: %w", err)
+	// Создаем директорию для БД, если ее нет
+	if err := os.MkdirAll(filepath.Dir(conf.Path), 0755); err != nil {
+		return nil, fmt.Errorf("failed to create database directory: %w", err)
 	}
 
-	//Проверка подключения
-	if err = db.Ping(); err != nil {
+	// Открываем (или создаем) базу данных
+	db, err := sql.Open("sqlite3", conf.Path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open database: %w", err)
+	}
+
+	// Проверяем подключение
+	if err := db.Ping(); err != nil {
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
-	// // Создание таблицы Countries, если её нет
-	// _, err = db.Exec(`
-	// 	CREATE TABLE IF NOT EXISTS countries (
-	// 		id SERIAL PRIMARY KEY,
-	// 		name TEXT NOT NULL,
-	// 		code VARCHAR(2) UNIQUE NOT NULL
-	// 		population INT
-	// 	);
-	// `)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("failed to create table Countries: %w", err)
-	// }
+	// Включаем foreign keys и другие настройки SQLite
+	if _, err := db.Exec("PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;"); err != nil {
+		return nil, fmt.Errorf("failed to set pragmas: %w", err)
+	}
 
-	return db, nil
+	// Создаем таблицу (синтаксис SQLite немного отличается)
+	_, err = db.Exec(`
+		CREATE TABLE IF NOT EXISTS shurls (
+			token TEXT PRIMARY KEY,
+			longurl TEXT NOT NULL
+		);
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create table shurls: %w", err)
+	}
+
+	return &SQLiteShURLRepository{DB: db}, nil
+}
+
+func (r *SQLiteShURLRepository) GetAll() ([]models.ShURL, error) {
+	rows, err := r.DB.Query("SELECT token, longurl FROM shurls")
+	if err != nil {
+		return nil, err
+	}
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	var shurls []models.ShURL
+	for rows.Next() {
+		var shurl models.ShURL
+		err := rows.Scan(&shurl.Token, &shurl.LongURL)
+		if err != nil {
+			return nil, err
+		}
+		shurls = append(shurls, shurl)
+	}
+
+	return shurls, nil
+}
+
+func (r *SQLiteShURLRepository) Get(id string) (*models.ShURL, error) {
+	var shurl models.ShURL
+	err := r.DB.QueryRow(
+		"SELECT token, longurl FROM shurls WHERE token = ?",
+		id,
+	).Scan(&shurl.Token, &shurl.LongURL)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("shurl not found")
+		}
+		return nil, err
+	}
+	return &shurl, nil
+}
+
+func (r *SQLiteShURLRepository) Create(shurl *models.ShURL) error {
+	_, err := r.DB.Exec(
+		"INSERT INTO shurls (token, longurl) VALUES (?, ?)",
+		shurl.Token,
+		shurl.LongURL,
+	)
+	return err
+}
+
+func (r *SQLiteShURLRepository) Update(shurl *models.ShURL) error {
+	_, err := r.DB.Exec(
+		"UPDATE shurls SET longurl = ? WHERE token = ?",
+		shurl.LongURL,
+		shurl.Token,
+	)
+	return err
+}
+
+func (r *SQLiteShURLRepository) Delete(id string) error {
+	_, err := r.DB.Exec("DELETE FROM shurls WHERE token = ?", id)
+	return err
 }

@@ -5,6 +5,6 @@ type ShURL struct {
 	LongURL string
 }
 
-func (su ShURL) GetId() string {
+func (su ShURL) GetID() string {
 	return su.Token
 }

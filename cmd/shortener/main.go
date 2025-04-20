@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/JustScorpio/urlshortener/internal/handlers"
-	"github.com/JustScorpio/urlshortener/internal/repository/postgres"
+	"github.com/JustScorpio/urlshortener/internal/repository/sqlite"
 	"github.com/JustScorpio/urlshortener/internal/services"
 
 	"github.com/gorilla/mux"
@@ -21,12 +21,12 @@ func main() {
 // функция run будет полезна при инициализации зависимостей сервера перед запуском
 func run() error {
 
-	// Инициализация репозиториев (+ базы данных)
-	repo, err := postgres.NewPostgresShURLRepository()
+	// Инициализация репозиториев с базой данных
+	repo, err := sqlite.NewSQLiteShURLRepository()
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer repo.Db.Close()
+	defer repo.DB.Close()
 
 	// Инициализация сервисов
 	shURLService := services.NewShURLService(repo)
