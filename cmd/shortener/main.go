@@ -1,9 +1,12 @@
 package main
 
 import (
-	"fmt"
+	"log"
 	"net/http"
-	"strings"
+
+	"github.com/JustScorpio/urlshortener/internal/handlers"
+	"github.com/JustScorpio/urlshortener/internal/repository/postgres"
+	"github.com/JustScorpio/urlshortener/internal/services"
 
 	"github.com/gorilla/mux"
 )
@@ -17,57 +20,23 @@ func main() {
 
 // функция run будет полезна при инициализации зависимостей сервера перед запуском
 func run() error {
+
+	// Инициализация репозиториев (+ базы данных)
+	repo, err := postgres.NewPostgresShURLRepository()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer repo.Db.Close()
+
+	// Инициализация сервисов
+	shURLService := services.NewShURLService(repo)
+
+	// Инициализация обработчиков
+	shURLHandler := handlers.NewShURLHandler(shURLService)
+
 	r := mux.NewRouter()
-	r.HandleFunc("/", getFullURL).Methods("GET")
-	r.HandleFunc("/", shortenURL).Methods("POST")
+	r.HandleFunc("/", shURLHandler.GetFullURL).Methods("GET")
+	r.HandleFunc("/", shURLHandler.ShortenURL).Methods("POST")
 
 	return http.ListenAndServe(":8080", r)
-}
-
-// Получить полный адрес
-func getFullURL(w http.ResponseWriter, r *http.Request) {
-	fmt.Printf(r.URL.Path)
-	if r.Method != http.MethodGet {
-		// разрешаем только Get-запросы
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
-
-	shortURL := strings.TrimPrefix(r.URL.Path, "/")
-
-	if shortURL == "" {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	w.Header().Add("Location", "https://practicum.yandex.ru/")
-	w.WriteHeader(http.StatusTemporaryRedirect)
-}
-
-// Укоротить адрес
-func shortenURL(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		// разрешаем только POST-запросы
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
-
-	// Автотесты говорят что НЕЛЬЗЯ проверять content-type. Ок, как скажете
-	// if r.Header.Get("Content-Type") != "text/plain" {
-	// 	// разрешаем только Content-Type: text/plain
-	// 	w.WriteHeader(http.StatusUnsupportedMediaType)
-	// 	return
-	// }
-
-	// Читаем тело запроса
-	// fullURL, err := io.ReadAll(r.Body)
-	// if err != nil {
-	// 	http.Error(w, "Failed to read request body", http.StatusBadRequest)
-	// 	return
-	// }
-	// defer r.Body.Close()
-
-	w.Header().Add("Content-Type", "text/plain")
-	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte("http://localhost:8080/EwHXdJfB"))
 }
