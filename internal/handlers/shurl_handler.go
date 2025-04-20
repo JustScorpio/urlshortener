@@ -83,5 +83,5 @@ func (h *ShURLHandler) ShortenURL(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Add("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte("http://localhost:8080/EwHXdJfB"))
+	w.Write([]byte("http://localhost:8080/" + token))
 }
