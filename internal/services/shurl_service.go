@@ -6,10 +6,11 @@ import (
 )
 
 type ShURLService struct {
-	repo repository.Repository[models.ShURL]
+	//ВАЖНО: В Go интерфейсы УЖЕ ЯВЛЯЮТСЯ ССЫЛОЧНЫМ ТИПОМ (под капотом — указатель на структуру)
+	repo repository.IRepository[models.ShURL]
 }
 
-func NewShURLService(repo repository.Repository[models.ShURL]) *ShURLService {
+func NewShURLService(repo repository.IRepository[models.ShURL]) *ShURLService {
 	return &ShURLService{repo: repo}
 }
 
