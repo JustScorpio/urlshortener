@@ -134,6 +134,7 @@ func TestShURLHandler_GetFullURL(t *testing.T) {
 			recorder := httptest.NewRecorder()
 			mockHandler.GetFullURL(recorder, tt.args.r)
 			result := recorder.Result()
+			defer result.Body.Close() //Важно - не забывать закрывать!
 
 			require.Equal(t, tt.want.statusCode, result.StatusCode)
 			if result.StatusCode == http.StatusTemporaryRedirect {
@@ -222,6 +223,7 @@ func TestShURLHandler_ShortenURL(t *testing.T) {
 			request := httptest.NewRequest(tt.args.method, "/", strings.NewReader(tt.args.url))
 			mockHandler.ShortenURL(recorder, request)
 			result := recorder.Result()
+			defer result.Body.Close() //Важно - не забывать закрывать!
 
 			require.Equal(t, tt.want.statusCode, result.StatusCode)
 			if result.StatusCode == http.StatusCreated {
