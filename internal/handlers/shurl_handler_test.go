@@ -106,7 +106,7 @@ func TestShURLHandler_GetFullURL(t *testing.T) {
 			result := recorder.Result()
 
 			if !assert.Equal(t, result.StatusCode, tt.want.statusCode) {
-				t.Errorf("Status code is not equal to expected")
+				t.Errorf("StatusCode is not equal to expected")
 			}
 			if !assert.Equal(t, result.Header.Get("location"), tt.want.fullURL) {
 				t.Errorf("Location is not equal to expected")
