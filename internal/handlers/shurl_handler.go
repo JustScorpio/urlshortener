@@ -69,6 +69,12 @@ func (h *ShURLHandler) ShortenURL(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
+	//Если Body пуст
+	if len(longURL) == 0 {
+		http.Error(w, "Body is empty", http.StatusBadRequest)
+		return
+	}
+
 	// Проверяем наличие урла в БД
 	existedURLs, err := h.service.GetAll()
 	if err != nil {
