@@ -5,7 +5,7 @@ go 1.23.0
 toolchain go1.23.8
 
 require (
-	github.com/gorilla/mux v1.8.1
+	github.com/go-chi/chi v1.5.5
 	github.com/jaevor/go-nanoid v1.4.0
 	github.com/lib/pq v1.10.9
 	github.com/stretchr/testify v1.8.4

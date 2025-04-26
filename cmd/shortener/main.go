@@ -8,7 +8,7 @@ import (
 	"github.com/JustScorpio/urlshortener/internal/repository/sqlite"
 	"github.com/JustScorpio/urlshortener/internal/services"
 
-	"github.com/gorilla/mux"
+	"github.com/go-chi/chi"
 )
 
 // функция main вызывается автоматически при запуске приложения
@@ -34,9 +34,14 @@ func run() error {
 	// Инициализация обработчиков
 	shURLHandler := handlers.NewShURLHandler(shURLService)
 
-	r := mux.NewRouter()
-	r.HandleFunc("/{token}", shURLHandler.GetFullURL).Methods("GET")
-	r.HandleFunc("/", shURLHandler.ShortenURL).Methods("POST")
+	// r := mux.NewRouter()
+	// r.HandleFunc("/{token}", shURLHandler.GetFullURL).Methods("GET")
+	// r.HandleFunc("/", shURLHandler.ShortenURL).Methods("POST")
 
+	// return http.ListenAndServe(":8080", r)
+
+	r := chi.NewRouter()
+	r.Get("/{token}", shURLHandler.GetFullURL)
+	r.Post("/", shURLHandler.ShortenURL)
 	return http.ListenAndServe(":8080", r)
 }
