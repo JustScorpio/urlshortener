@@ -37,6 +37,15 @@ func run() error {
 	// Инициализация обработчиков
 	shURLHandler := handlers.NewShURLHandler(shURLService, flagShURLBaseAddr)
 
+	// Если адрес один - запускаем то и то на одном порту
+	if flagRunAddr == flagShURLBaseAddr {
+		r := chi.NewRouter()
+		r.Get("/{token}", shURLHandler.GetFullURL)
+		r.Post("/", shURLHandler.ShortenURL)
+		return http.ListenAndServe(flagRunAddr, r)
+	}
+
+	// Если разные - разные сервера для разных хэндлеров
 	fullURLGetter := chi.NewRouter()
 	fullURLGetter.Get("/{token}", shURLHandler.GetFullURL)
 	fmt.Println("Running short-to-long redirect server on", flagRunAddr)
