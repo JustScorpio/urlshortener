@@ -7,7 +7,6 @@ import (
 
 	"github.com/JustScorpio/urlshortener/internal/models"
 	"github.com/JustScorpio/urlshortener/internal/services"
-	"github.com/go-chi/chi"
 	"github.com/jaevor/go-nanoid"
 )
 
@@ -27,7 +26,8 @@ func (h *ShURLHandler) GetFullURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token := strings.ToLower(chi.URLParam(r, "token"))
+	token := strings.TrimPrefix(r.URL.Path, "/")
+	//token := chi.URLParam(r, "token") //Not works. Known chi issue (https://github.com/go-chi/chi/issues/938)
 
 	if token == "" {
 		w.WriteHeader(http.StatusBadRequest)

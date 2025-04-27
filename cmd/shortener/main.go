@@ -38,8 +38,6 @@ func run() error {
 	// r.HandleFunc("/{token}", shURLHandler.GetFullURL).Methods("GET")
 	// r.HandleFunc("/", shURLHandler.ShortenURL).Methods("POST")
 
-	// return http.ListenAndServe(":8080", r)
-
 	r := chi.NewRouter()
 	r.Get("/{token}", shURLHandler.GetFullURL)
 	r.Post("/", shURLHandler.ShortenURL)
