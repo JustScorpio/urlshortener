@@ -11,11 +11,15 @@ import (
 )
 
 type ShURLHandler struct {
-	service *services.ShURLService
+	service       *services.ShURLService
+	shURLBaseAddr string
 }
 
-func NewShURLHandler(service *services.ShURLService) *ShURLHandler {
-	return &ShURLHandler{service: service}
+func NewShURLHandler(service *services.ShURLService, shURLBaseAddr string) *ShURLHandler {
+	return &ShURLHandler{
+		service:       service,
+		shURLBaseAddr: shURLBaseAddr,
+	}
 }
 
 // Получить полный адрес
@@ -107,5 +111,5 @@ func (h *ShURLHandler) ShortenURL(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Add("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte("http://localhost:8080/" + token))
+	w.Write([]byte("http://" + h.shURLBaseAddr + "/" + token))
 }

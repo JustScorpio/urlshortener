@@ -78,7 +78,7 @@ func TestShURLHandler_GetFullURL(t *testing.T) {
 	}
 	mockRepo := MockRepository{db: shurls}
 	mockService := services.NewShURLService(&mockRepo)
-	mockHandler := NewShURLHandler(mockService)
+	mockHandler := NewShURLHandler(mockService, "localhost:8080")
 
 	type args struct {
 		r *http.Request
@@ -161,7 +161,7 @@ func TestShURLHandler_ShortenURL(t *testing.T) {
 	}
 	mockRepo := MockRepository{db: shurls}
 	mockService := services.NewShURLService(&mockRepo)
-	mockHandler := NewShURLHandler(mockService)
+	mockHandler := NewShURLHandler(mockService, "localhost:8080")
 
 	type args struct {
 		method string

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 
@@ -13,6 +14,9 @@ import (
 
 // функция main вызывается автоматически при запуске приложения
 func main() {
+	// обрабатываем аргументы командной строки
+	parseFlags()
+
 	if err := run(); err != nil {
 		panic(err)
 	}
@@ -32,14 +36,12 @@ func run() error {
 	shURLService := services.NewShURLService(repo)
 
 	// Инициализация обработчиков
-	shURLHandler := handlers.NewShURLHandler(shURLService)
-
-	// r := mux.NewRouter()
-	// r.HandleFunc("/{token}", shURLHandler.GetFullURL).Methods("GET")
-	// r.HandleFunc("/", shURLHandler.ShortenURL).Methods("POST")
+	shURLHandler := handlers.NewShURLHandler(shURLService, flagShURLBaseAddr)
 
 	r := chi.NewRouter()
 	r.Get("/{token}", shURLHandler.GetFullURL)
 	r.Post("/", shURLHandler.ShortenURL)
-	return http.ListenAndServe(":8080", r)
+
+	fmt.Println("Running server on", flagRunAddr)
+	return http.ListenAndServe(flagRunAddr, r)
 }

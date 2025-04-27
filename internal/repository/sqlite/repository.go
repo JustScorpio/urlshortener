@@ -96,9 +96,6 @@ func (r *SQLiteShURLRepository) Get(id string) (*models.ShURL, error) {
 	).Scan(&shurl.Token, &shurl.LongURL)
 
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("shurl not found")
-		}
 		return nil, err
 	}
 	return &shurl, nil
