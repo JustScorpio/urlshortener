@@ -12,7 +12,7 @@ var flagShURLBaseAddr string
 
 // parseFlags обрабатывает аргументы командной строки и сохраняет их значения в соответствующих переменных
 func parseFlags() {
-	flag.StringVar(&flagRunAddr, "a", ":8000", "address and port to run server")
-	flag.StringVar(&flagShURLBaseAddr, "b", ":8000", "base address and port for shortened URLs")
+	flag.StringVar(&flagRunAddr, "a", ":8080", "address and port to run server")
+	flag.StringVar(&flagShURLBaseAddr, "b", ":8080", "base address and port for shortened URLs")
 	flag.Parse()
 }
