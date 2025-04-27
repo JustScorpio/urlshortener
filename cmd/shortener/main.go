@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 
 	"github.com/JustScorpio/urlshortener/internal/handlers"
@@ -28,7 +27,7 @@ func run() error {
 	// Инициализация репозиториев с базой данных
 	repo, err := sqlite.NewSQLiteShURLRepository()
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	defer repo.DB.Close()
 
@@ -38,10 +37,21 @@ func run() error {
 	// Инициализация обработчиков
 	shURLHandler := handlers.NewShURLHandler(shURLService, flagShURLBaseAddr)
 
-	r := chi.NewRouter()
-	r.Get("/{token}", shURLHandler.GetFullURL)
-	r.Post("/", shURLHandler.ShortenURL)
+	fullURLGetter := chi.NewRouter()
+	fullURLGetter.Get("/{token}", shURLHandler.GetFullURL)
+	fmt.Println("Running short-to-long redirect server on", flagRunAddr)
+	err = http.ListenAndServe(flagRunAddr, fullURLGetter)
+	if err != nil {
+		return err
+	}
 
-	fmt.Println("Running server on", flagRunAddr)
-	return http.ListenAndServe(flagRunAddr, r)
+	shortener := chi.NewRouter()
+	shortener.Post("/", shURLHandler.ShortenURL)
+	fmt.Println("Running URL shortener on", flagRunAddr)
+	err = http.ListenAndServe(flagRunAddr, shortener)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
