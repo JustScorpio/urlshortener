@@ -36,31 +36,33 @@ func run() error {
 	shURLService := services.NewShURLService(repo)
 
 	// Инициализация обработчиков
-	shURLHandler := handlers.NewShURLHandler(shURLService, flagShURLBaseAddr)
+	shURLHandler := handlers.NewShURLHandler(shURLService, flagRedirectRouterAddr)
 
 	// Если адрес один - запускаем то и то на одном порту
-	if flagShortenerAddr == flagShURLBaseAddr {
+	if flagShortenerRouterAddr == flagRedirectRouterAddr {
 		r := chi.NewRouter()
 		r.Get("/{token}", shURLHandler.GetFullURL)
 		r.Post("/", shURLHandler.ShortenURL)
-		return http.ListenAndServe(flagShortenerAddr, r)
+		return http.ListenAndServe(flagShortenerRouterAddr, r)
 	}
 
 	// Если разные - разные сервера для разных хэндлеров в разных горутинах
+	redirectRouter := chi.NewRouter()
+	redirectRouter.Get("/{token}", shURLHandler.GetFullURL)
+
+	shortenerRouter := chi.NewRouter()
+	shortenerRouter.Post("/", shURLHandler.ShortenURL)
+
 	errCh := make(chan error)
 
 	go func() {
-		shURLBase := chi.NewRouter()
-		shURLBase.Get("/{token}", shURLHandler.GetFullURL)
-		fmt.Println("Running short-to-long redirect server on", flagShURLBaseAddr)
-		errCh <- http.ListenAndServe(flagShURLBaseAddr, shURLBase)
+		fmt.Println("Running short-to-long redirect server on", flagRedirectRouterAddr)
+		errCh <- http.ListenAndServe(flagRedirectRouterAddr, redirectRouter)
 	}()
 
 	go func() {
-		shortener := chi.NewRouter()
-		shortener.Post("/", shURLHandler.ShortenURL)
-		fmt.Println("Running URL shortener on", flagShortenerAddr)
-		errCh <- http.ListenAndServe(flagShortenerAddr, shortener)
+		fmt.Println("Running URL shortener on", flagShortenerRouterAddr)
+		errCh <- http.ListenAndServe(flagShortenerRouterAddr, shortenerRouter)
 	}()
 
 	// Блокируем основную горутину и обрабатываем ошибки
