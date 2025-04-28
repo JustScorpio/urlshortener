@@ -51,28 +51,20 @@ func run() error {
 	// Если разные - разные сервера для разных хэндлеров в разных горутинах
 	redirectRouter := chi.NewRouter()
 	redirectRouter.Get("/{token}", shURLHandler.GetFullURL)
-	redirectServer := &http.Server{
-		Addr:    flagRedirectRouterAddr,
-		Handler: redirectRouter,
-	}
 
 	shortenerRouter := chi.NewRouter()
 	shortenerRouter.Post("/", shURLHandler.ShortenURL)
-	shortenerServer := &http.Server{
-		Addr:    flagShortenerRouterAddr,
-		Handler: shortenerRouter,
-	}
 
 	errCh := make(chan error)
 
 	go func() {
 		fmt.Println("Running short-to-long redirect server on", flagRedirectRouterAddr)
-		errCh <- redirectServer.ListenAndServe()
+		errCh <- http.ListenAndServe(flagRedirectRouterAddr, redirectRouter)
 	}()
 
 	go func() {
 		fmt.Println("Running URL shortener on", flagShortenerRouterAddr)
-		errCh <- shortenerServer.ListenAndServe()
+		errCh <- http.ListenAndServe(flagShortenerRouterAddr, shortenerRouter)
 	}()
 
 	// Блокируем основную горутину и обрабатываем ошибки
