@@ -15,7 +15,4 @@ func parseFlags() {
 	flag.StringVar(&flagShortenerRouterAddr, "a", ":8080", "address and port to run server")
 	flag.StringVar(&flagRedirectRouterAddr, "b", ":8080", "base address and port for shortened URLs")
 	flag.Parse()
-
-	flagShortenerRouterAddr = normalizeAddress(flagShortenerRouterAddr)
-	flagRedirectRouterAddr = normalizeAddress(flagRedirectRouterAddr)
 }
