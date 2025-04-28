@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"strings"
 )
 
 // неэкспортированная переменная flagShortenerRouterAddr содержит адрес и порт для запуска сервера
@@ -15,4 +16,31 @@ func parseFlags() {
 	flag.StringVar(&flagShortenerRouterAddr, "a", ":8080", "address and port to run server")
 	flag.StringVar(&flagRedirectRouterAddr, "b", ":8080", "base address and port for shortened URLs")
 	flag.Parse()
+
+	flagShortenerRouterAddr = normalizeAddress(flagShortenerRouterAddr)
+	flagRedirectRouterAddr = normalizeAddress(flagRedirectRouterAddr)
+}
+
+// Нормализация адресов
+func normalizeAddress(addr string) string {
+
+	// Добавляем порт, если его нет
+	if !strings.Contains(addr, ":") {
+		addr += ":8080"
+	}
+
+	// Убираем чать http://
+	if strings.HasPrefix(addr, "http://") {
+		addr = strings.Replace(addr, "http://", "", 1)
+	}
+
+	// Убираем 127.0.0.1 и localhost
+	if strings.HasPrefix(addr, "127.0.0.1:") {
+		addr = strings.Replace(addr, "127.0.0.1", "", 1)
+	}
+	if strings.HasPrefix(addr, "localhost:") {
+		addr = strings.Replace(addr, "localhost", "", 1)
+	}
+
+	return addr
 }
