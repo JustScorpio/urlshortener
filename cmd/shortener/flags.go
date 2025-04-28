@@ -5,10 +5,10 @@ import (
 	"strings"
 )
 
-// неэкспортированная переменная flagShortenerRouterAddr содержит адрес и порт для запуска сервера
+// flagShortenerRouterAddr содержит адрес и порт для запуска сервера
 var flagShortenerRouterAddr string
 
-// неэкспортированная переменная flagRedirectRouterAddr содержит базовый адрес результирующего сокращённого URL (часть перед токеном)
+// flagRedirectRouterAddr содержит базовый адрес результирующего сокращённого URL (часть перед токеном)
 var flagRedirectRouterAddr string
 
 // parseFlags обрабатывает аргументы командной строки и сохраняет их значения в соответствующих переменных
