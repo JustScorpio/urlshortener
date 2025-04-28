@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/JustScorpio/urlshortener/internal/handlers"
@@ -17,7 +18,7 @@ func main() {
 	parseFlags()
 
 	if err := run(); err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 }
 
@@ -46,18 +47,18 @@ func run() error {
 	}
 
 	// Если разные - разные сервера для разных хэндлеров
-	fullURLGetter := chi.NewRouter()
-	fullURLGetter.Get("/{token}", shURLHandler.GetFullURL)
-	fmt.Println("Running short-to-long redirect server on", flagShURLBaseAddr)
-	err = http.ListenAndServe(flagShURLBaseAddr, fullURLGetter)
-	if err != nil {
-		return err
-	}
-
 	shortener := chi.NewRouter()
 	shortener.Post("/", shURLHandler.ShortenURL)
 	fmt.Println("Running URL shortener on", flagShortenerAddr)
 	err = http.ListenAndServe(flagShortenerAddr, shortener)
+	if err != nil {
+		return err
+	}
+
+	fullURLGetter := chi.NewRouter()
+	fullURLGetter.Get("/{token}", shURLHandler.GetFullURL)
+	fmt.Println("Running short-to-long redirect server on", flagShURLBaseAddr)
+	err = http.ListenAndServe(flagShURLBaseAddr, fullURLGetter)
 	if err != nil {
 		return err
 	}
