@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 
@@ -39,29 +38,29 @@ func run() error {
 	shURLHandler := handlers.NewShURLHandler(shURLService, flagShURLBaseAddr)
 
 	// Если адрес один - запускаем то и то на одном порту
-	if flagShortenerAddr == flagShURLBaseAddr {
-		r := chi.NewRouter()
-		r.Get("/{token}", shURLHandler.GetFullURL)
-		r.Post("/", shURLHandler.ShortenURL)
-		return http.ListenAndServe(flagShortenerAddr, r)
-	}
+	// if flagShortenerAddr == flagShURLBaseAddr {
+	r := chi.NewRouter()
+	r.Get("/{token}", shURLHandler.GetFullURL)
+	r.Post("/", shURLHandler.ShortenURL)
+	return http.ListenAndServe(flagShortenerAddr, r)
+	// }
 
-	// Если разные - разные сервера для разных хэндлеров
-	shortener := chi.NewRouter()
-	shortener.Post("/", shURLHandler.ShortenURL)
-	fmt.Println("Running URL shortener on", flagShortenerAddr)
-	err = http.ListenAndServe(flagShortenerAddr, shortener)
-	if err != nil {
-		return err
-	}
+	// // Если разные - разные сервера для разных хэндлеров
+	// shURLBase := chi.NewRouter()
+	// shURLBase.Get("/{token}", shURLHandler.GetFullURL)
+	// fmt.Println("Running short-to-long redirect server on", flagShURLBaseAddr)
+	// err = http.ListenAndServe(flagShURLBaseAddr, shURLBase)
+	// if err != nil {
+	// 	return err
+	// }
 
-	fullURLGetter := chi.NewRouter()
-	fullURLGetter.Get("/{token}", shURLHandler.GetFullURL)
-	fmt.Println("Running short-to-long redirect server on", flagShURLBaseAddr)
-	err = http.ListenAndServe(flagShURLBaseAddr, fullURLGetter)
-	if err != nil {
-		return err
-	}
+	// shortener := chi.NewRouter()
+	// shortener.Post("/", shURLHandler.ShortenURL)
+	// fmt.Println("Running URL shortener on", flagShortenerAddr)
+	// err = http.ListenAndServe(flagShortenerAddr, shortener)
+	// if err != nil {
+	// 	return err
+	// }
 
-	return nil
+	// return nil
 }
