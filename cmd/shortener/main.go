@@ -40,13 +40,13 @@ func run() error {
 	shURLHandler := handlers.NewShURLHandler(shURLService, flagRedirectRouterAddr)
 
 	// Если адрес один - запускаем то и то на одном порту
-	// if normalizeAddress(flagShortenerRouterAddr) == normalizeAddress(flagRedirectRouterAddr) {
-	// 	r := chi.NewRouter()
-	// 	r.Get("/{token}", shURLHandler.GetFullURL)
-	// 	r.Post("/", shURLHandler.ShortenURL)
-	// 	fmt.Println("Running server on", flagShortenerRouterAddr)
-	// 	return http.ListenAndServe(flagShortenerRouterAddr, r)
-	// }
+	if normalizeAddress(flagShortenerRouterAddr) == normalizeAddress(flagRedirectRouterAddr) {
+		r := chi.NewRouter()
+		r.Get("/{token}", shURLHandler.GetFullURL)
+		r.Post("/", shURLHandler.ShortenURL)
+		fmt.Println("Running server on", flagShortenerRouterAddr)
+		return http.ListenAndServe(flagShortenerRouterAddr, r)
+	}
 
 	// Если разные - разные сервера для разных хэндлеров в разных горутинах
 	redirectRouter := chi.NewRouter()
