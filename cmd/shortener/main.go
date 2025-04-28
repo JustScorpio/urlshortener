@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/JustScorpio/urlshortener/internal/handlers"
 	"github.com/JustScorpio/urlshortener/internal/repository/sqlite"
@@ -37,6 +38,11 @@ func run() error {
 
 	// Инициализация обработчиков
 	shURLHandler := handlers.NewShURLHandler(shURLService, flagRedirectRouterAddr)
+
+	// Берём адрес сервера из переменной окружения. Иначе - из аргумента
+	if envServerAddr, hasEnv := os.LookupEnv("SERVER_ADDRESS"); hasEnv {
+		flagShortenerRouterAddr = normalizeAddress(envServerAddr)
+	}
 
 	// Сравниваем нормализованные адреса. Если адрес один - запускаем то и то на одном порту
 	if flagShortenerRouterAddr == flagRedirectRouterAddr {
