@@ -38,16 +38,15 @@ func run() error {
 	// Инициализация обработчиков
 	shURLHandler := handlers.NewShURLHandler(shURLService, flagShURLBaseAddr)
 
-	// // Если адрес один - запускаем то и то на одном порту
-	// if flagShortenerAddr == flagShURLBaseAddr {
-	// 	r := chi.NewRouter()
-	// 	r.Get("/{token}", shURLHandler.GetFullURL)
-	// 	r.Post("/", shURLHandler.ShortenURL)
-	// 	return http.ListenAndServe(flagShortenerAddr, r)
-	// }
+	// Если адрес один - запускаем то и то на одном порту
+	if flagShortenerAddr == flagShURLBaseAddr {
+		r := chi.NewRouter()
+		r.Get("/{token}", shURLHandler.GetFullURL)
+		r.Post("/", shURLHandler.ShortenURL)
+		return http.ListenAndServe(flagShortenerAddr, r)
+	}
 
-	// Если разные - разные сервера для разных хэндлеров
-	// Запускаем оба сервера в горутинах
+	// Если разные - разные сервера для разных хэндлеров в разных горутинах
 	errCh := make(chan error)
 
 	go func() {
