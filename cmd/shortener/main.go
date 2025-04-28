@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/JustScorpio/urlshortener/internal/handlers"
 	"github.com/JustScorpio/urlshortener/internal/repository/sqlite"
@@ -39,7 +40,7 @@ func run() error {
 	shURLHandler := handlers.NewShURLHandler(shURLService, flagRedirectRouterAddr)
 
 	// Если адрес один - запускаем то и то на одном порту
-	if flagShortenerRouterAddr == flagRedirectRouterAddr {
+	if normalizeAddress(flagShortenerRouterAddr) == normalizeAddress(flagRedirectRouterAddr) {
 		r := chi.NewRouter()
 		r.Get("/{token}", shURLHandler.GetFullURL)
 		r.Post("/", shURLHandler.ShortenURL)
@@ -67,4 +68,20 @@ func run() error {
 
 	// Блокируем основную горутину и обрабатываем ошибки
 	return <-errCh
+}
+
+// Нормализация значений
+func normalizeAddress(addr string) string {
+
+	// Добавляем порт, если его нет
+	if !strings.Contains(addr, ":") {
+		addr += ":8080"
+	}
+
+	// Заменяем 127.0.0.1 на localhost
+	if strings.HasPrefix(addr, "127.0.0.1:") {
+		addr = strings.Replace(addr, "127.0.0.1", "localhost", 1)
+	}
+
+	return addr
 }
