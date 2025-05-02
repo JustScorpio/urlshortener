@@ -14,12 +14,12 @@ import (
 var configContent []byte
 
 type DBConfiguration struct {
-	Host     string
-	User     string
-	Password string
-	DBName   string
-	Port     string
-	SslMode  string
+	Host     string `json:"host"`
+	User     string `json:"user"`
+	Password string `json:"password"`
+	DBName   string `json:"dbname"`
+	Port     string `json:"port"`
+	SslMode  string `json:"sslmode"`
 }
 
 type PostgresShURLRepository struct {

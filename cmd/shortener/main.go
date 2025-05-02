@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/JustScorpio/urlshortener/internal/handlers"
+	"github.com/JustScorpio/urlshortener/internal/logger"
 	"github.com/JustScorpio/urlshortener/internal/repository/sqlite"
 	"github.com/JustScorpio/urlshortener/internal/services"
 
@@ -39,6 +40,13 @@ func run() error {
 	// Инициализация обработчиков
 	shURLHandler := handlers.NewShURLHandler(shURLService, flagRedirectRouterAddr)
 
+	//Инициализация логгера
+	zapLogger, err := logger.NewLogger("Info", true)
+	if err != nil {
+		return err
+	}
+	defer zapLogger.Sync()
+
 	// Берём адрес сервера из переменной окружения. Иначе - из аргумента
 	if envServerAddr, hasEnv := os.LookupEnv("SERVER_ADDRESS"); hasEnv {
 		flagShortenerRouterAddr = normalizeAddress(envServerAddr)
@@ -47,6 +55,7 @@ func run() error {
 	// Сравниваем нормализованные адреса. Если адрес один - запускаем то и то на одном порту
 	if flagShortenerRouterAddr == flagRedirectRouterAddr {
 		r := chi.NewRouter()
+		r.Use(logger.LoggingMiddleware(zapLogger))
 		r.Get("/{token}", shURLHandler.GetFullURL)
 		r.Post("/", shURLHandler.ShortenURL)
 		fmt.Println("Running server on", flagShortenerRouterAddr)
