@@ -5,8 +5,6 @@ import (
 	"net/http"
 	"strings"
 
-	"encoding/json"
-
 	"github.com/JustScorpio/urlshortener/internal/models"
 	"github.com/JustScorpio/urlshortener/internal/services"
 	"github.com/jaevor/go-nanoid"
@@ -60,7 +58,7 @@ func (h *ShURLHandler) ShortenURL(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//Читаем тело запроса
-	body, err := io.ReadAll(r.Body)
+	longURL, err := io.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, "Failed to read request body: "+err.Error(), http.StatusBadRequest)
 		return
@@ -68,30 +66,9 @@ func (h *ShURLHandler) ShortenURL(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	//Если Body пуст
-	if len(body) == 0 {
+	if len(longURL) == 0 {
 		http.Error(w, "Body is empty", http.StatusBadRequest)
 		return
-	}
-
-	var longURL string
-
-	contentType := r.Header.Get("Content-Type")
-
-	switch contentType {
-	case "application/json":
-		var data struct {
-			URL string `json:"url"`
-		}
-		err = json.Unmarshal(body, &data)
-
-		if err != nil {
-			http.Error(w, "Failed to decode json body: "+err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		longURL = data.URL
-	default:
-		longURL = string(body)
 	}
 
 	// Проверяем наличие урла в БД
@@ -103,7 +80,7 @@ func (h *ShURLHandler) ShortenURL(w http.ResponseWriter, r *http.Request) {
 
 	token := ""
 	for _, existedURL := range existedURLs {
-		if existedURL.LongURL == longURL {
+		if existedURL.LongURL == string(longURL) {
 			token = existedURL.Token
 			break
 		}
@@ -125,27 +102,7 @@ func (h *ShURLHandler) ShortenURL(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	//Ответ с тем же content-type что и запрос
-	shortURL := "http://" + h.shURLBaseAddr + "/" + token
-	var responseBody []byte
-	switch contentType {
-	case "application/json":
-		data := struct {
-			Result string `json:"result"`
-		}{
-			Result: shortURL,
-		}
-		responseBody, err = json.Marshal(data)
-
-		if err != nil {
-			http.Error(w, "Failed to encode json body: "+err.Error(), http.StatusBadRequest)
-			return
-		}
-	default:
-		responseBody = []byte(shortURL)
-	}
-
-	w.Header().Add("Content-Type", contentType)
+	w.Header().Add("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusCreated)
-	w.Write(responseBody)
+	w.Write([]byte("http://" + h.shURLBaseAddr + "/" + token))
 }
