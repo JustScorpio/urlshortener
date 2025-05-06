@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"strings"
 
+	"encoding/json"
+
 	"github.com/JustScorpio/urlshortener/internal/models"
 	"github.com/JustScorpio/urlshortener/internal/services"
 	"github.com/jaevor/go-nanoid"
@@ -57,15 +59,8 @@ func (h *ShURLHandler) ShortenURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Автотесты говорят что НЕЛЬЗЯ проверять content-type. Ок, как скажете
-	// if r.Header.Get("Content-Type") != "text/plain" {
-	// 	// разрешаем только Content-Type: text/plain
-	// 	w.WriteHeader(http.StatusUnsupportedMediaType)
-	// 	return
-	// }
-
 	//Читаем тело запроса
-	longURL, err := io.ReadAll(r.Body)
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, "Failed to read request body: "+err.Error(), http.StatusBadRequest)
 		return
@@ -73,8 +68,32 @@ func (h *ShURLHandler) ShortenURL(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	//Если Body пуст
-	if len(longURL) == 0 {
+	if len(body) == 0 {
 		http.Error(w, "Body is empty", http.StatusBadRequest)
+		return
+	}
+
+	var longURL string
+
+	contentType := r.Header.Get("Content-Type")
+
+	switch contentType {
+	case "text/plain":
+		longURL = string(body)
+	case "application/json":
+		var data struct {
+			URL string `json:"url"`
+		}
+		err = json.Unmarshal(body, &data)
+
+		if err != nil {
+			http.Error(w, "Failed to decode json body: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		longURL = data.URL
+	default:
+		w.WriteHeader(http.StatusUnsupportedMediaType)
 		return
 	}
 
@@ -87,7 +106,7 @@ func (h *ShURLHandler) ShortenURL(w http.ResponseWriter, r *http.Request) {
 
 	token := ""
 	for _, existedURL := range existedURLs {
-		if existedURL.LongURL == string(longURL) {
+		if existedURL.LongURL == longURL {
 			token = existedURL.Token
 			break
 		}
@@ -109,7 +128,27 @@ func (h *ShURLHandler) ShortenURL(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	w.Header().Add("Content-Type", "text/plain")
+	//Ответ с тем же content-type что и запрос
+	shortURL := "http://" + h.shURLBaseAddr + "/" + token
+	var responseBody []byte
+	switch contentType {
+	case "text/plain":
+		responseBody = []byte(shortURL)
+	case "application/json":
+		data := struct {
+			Result string `json:"result"`
+		}{
+			Result: shortURL,
+		}
+		responseBody, err = json.Marshal(data)
+
+		if err != nil {
+			http.Error(w, "Failed to encode json body: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+	}
+
+	w.Header().Add("Content-Type", contentType)
 	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte("http://" + h.shURLBaseAddr + "/" + token))
+	w.Write(responseBody)
 }

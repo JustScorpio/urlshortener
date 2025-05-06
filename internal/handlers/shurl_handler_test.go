@@ -216,6 +216,7 @@ func TestShURLHandler_ShortenURL(t *testing.T) {
 				token:      "", //при не 201 не имеет значения
 			},
 		},
+		//TODO: Тесты для json-варианта запросов и ответов - придётся переписывать все тесты + сделать для каждого теста свой мок БД
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
