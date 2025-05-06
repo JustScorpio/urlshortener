@@ -78,8 +78,6 @@ func (h *ShURLHandler) ShortenURL(w http.ResponseWriter, r *http.Request) {
 	contentType := r.Header.Get("Content-Type")
 
 	switch contentType {
-	case "text/plain":
-		longURL = string(body)
 	case "application/json":
 		var data struct {
 			URL string `json:"url"`
@@ -93,8 +91,7 @@ func (h *ShURLHandler) ShortenURL(w http.ResponseWriter, r *http.Request) {
 
 		longURL = data.URL
 	default:
-		w.WriteHeader(http.StatusUnsupportedMediaType)
-		return
+		longURL = string(body)
 	}
 
 	// Проверяем наличие урла в БД
@@ -132,8 +129,6 @@ func (h *ShURLHandler) ShortenURL(w http.ResponseWriter, r *http.Request) {
 	shortURL := "http://" + h.shURLBaseAddr + "/" + token
 	var responseBody []byte
 	switch contentType {
-	case "text/plain":
-		responseBody = []byte(shortURL)
 	case "application/json":
 		data := struct {
 			Result string `json:"result"`
@@ -146,6 +141,8 @@ func (h *ShURLHandler) ShortenURL(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Failed to encode json body: "+err.Error(), http.StatusBadRequest)
 			return
 		}
+	default:
+		responseBody = []byte(shortURL)
 	}
 
 	w.Header().Add("Content-Type", contentType)
