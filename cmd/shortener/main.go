@@ -58,7 +58,7 @@ func run() error {
 		r := chi.NewRouter()
 		r.Use(logger.LoggingMiddleware(zapLogger))
 		r.Get("/{token}", shURLHandler.GetFullURL)
-		r.With(jsonpacker.JSONPackingMiddleware()).Post("/api/shortener", shURLHandler.ShortenURL)
+		r.With(jsonpacker.JSONPackingMiddleware()).Post("/api/shorten", shURLHandler.ShortenURL)
 		r.Post("/", shURLHandler.ShortenURL)
 		fmt.Println("Running server on", flagShortenerRouterAddr)
 		return http.ListenAndServe(flagShortenerRouterAddr, r)
