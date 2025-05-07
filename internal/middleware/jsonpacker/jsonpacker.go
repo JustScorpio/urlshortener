@@ -9,7 +9,7 @@ import (
 )
 
 // middleware для преобразования тела запроса из- и в- формат json.
-func JsonPackingMiddleware() func(http.Handler) http.Handler {
+func JSONPackingMiddleware() func(http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
