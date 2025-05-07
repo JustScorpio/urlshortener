@@ -7,7 +7,8 @@ import (
 	"os"
 
 	"github.com/JustScorpio/urlshortener/internal/handlers"
-	"github.com/JustScorpio/urlshortener/internal/logger"
+	"github.com/JustScorpio/urlshortener/internal/middleware/jsonpacker"
+	"github.com/JustScorpio/urlshortener/internal/middleware/logger"
 	"github.com/JustScorpio/urlshortener/internal/repository/sqlite"
 	"github.com/JustScorpio/urlshortener/internal/services"
 
@@ -57,6 +58,7 @@ func run() error {
 		r := chi.NewRouter()
 		r.Use(logger.LoggingMiddleware(zapLogger))
 		r.Get("/{token}", shURLHandler.GetFullURL)
+		r.With(jsonpacker.JsonPackingMiddleware()).Post("/api/shortener", shURLHandler.ShortenURL)
 		r.Post("/", shURLHandler.ShortenURL)
 		fmt.Println("Running server on", flagShortenerRouterAddr)
 		return http.ListenAndServe(flagShortenerRouterAddr, r)
