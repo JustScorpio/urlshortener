@@ -102,7 +102,7 @@ func (h *ShURLHandler) ShortenURL(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	w.Write([]byte("http://" + h.shURLBaseAddr + "/" + token))
 	w.Header().Add("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte("http://" + h.shURLBaseAddr + "/" + token))
 }
