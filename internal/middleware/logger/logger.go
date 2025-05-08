@@ -34,26 +34,6 @@ func NewLogger(level string, isProd bool) (*zap.Logger, error) {
 	return logger, nil
 }
 
-// Обертка (встраивание) для ResponseWriter
-type responseWriter struct {
-	http.ResponseWriter // встраиваем оригинальный http.ResponseWriter
-	status              int
-	size                int
-}
-
-func (r *responseWriter) Write(b []byte) (int, error) {
-	// записываем ответ, используя оригинальный http.ResponseWriter
-	size, err := r.ResponseWriter.Write(b)
-	r.size += size // захватываем размер
-	return size, err
-}
-
-func (r *responseWriter) WriteHeader(statusCode int) {
-	// записываем код статуса, используя оригинальный http.ResponseWriter
-	r.ResponseWriter.WriteHeader(statusCode)
-	r.status = statusCode // захватываем код статуса
-}
-
 // middleware-логер для входящих HTTP-запросов.
 // aka функция, возвращающая функцию которая принимает функцию и возвращает функцию
 func LoggingMiddleware(logger *zap.Logger) func(http.Handler) http.Handler {
@@ -62,7 +42,7 @@ func LoggingMiddleware(logger *zap.Logger) func(http.Handler) http.Handler {
 			start := time.Now()
 
 			// Создаем обертку для ResponseWriter, чтобы получить статус
-			rw := &responseWriter{w, http.StatusOK, 0}
+			rw := &responseWriter{w, http.StatusOK, 0, ""}
 
 			// Пропускаем запрос дальше
 			h.ServeHTTP(rw, r)
@@ -78,7 +58,30 @@ func LoggingMiddleware(logger *zap.Logger) func(http.Handler) http.Handler {
 				zap.String("user-agent", r.UserAgent()),
 				zap.Int("status", rw.status),
 				zap.Int("size", rw.size),
+				zap.String("body", rw.body),
 			)
 		})
 	}
+}
+
+// Обертка (встраивание) для ResponseWriter
+type responseWriter struct {
+	http.ResponseWriter // встраиваем оригинальный http.ResponseWriter
+	status              int
+	size                int
+	body                string
+}
+
+func (r *responseWriter) Write(b []byte) (int, error) {
+	// записываем ответ, используя оригинальный http.ResponseWriter
+	size, err := r.ResponseWriter.Write(b)
+	r.size += size // захватываем размер
+	r.body = string(b)
+	return size, err
+}
+
+func (r *responseWriter) WriteHeader(statusCode int) {
+	// записываем код статуса, используя оригинальный http.ResponseWriter
+	r.ResponseWriter.WriteHeader(statusCode)
+	r.status = statusCode // захватываем код статуса
 }
