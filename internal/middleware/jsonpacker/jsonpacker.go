@@ -53,9 +53,14 @@ type responseWriter struct {
 	http.ResponseWriter
 }
 
-func (w *responseWriter) Write(data []byte) (int, error) {
-	// Преобразование content-type ответа в JSON
+func (w *responseWriter) WriteHeader(code int) {
+	// Устанавливаем Content-Type перед фиксацией заголовков
 	w.Header().Set("Content-Type", "application/json")
+
+	w.ResponseWriter.WriteHeader(code)
+}
+
+func (w *responseWriter) Write(data []byte) (int, error) {
 
 	// Конвертируем plain text в JSON
 	var respData struct {
