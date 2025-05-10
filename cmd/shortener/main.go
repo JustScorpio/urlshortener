@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/JustScorpio/urlshortener/internal/handlers"
+	"github.com/JustScorpio/urlshortener/internal/middleware/gzipencoder"
 	"github.com/JustScorpio/urlshortener/internal/middleware/jsonpacker"
 	"github.com/JustScorpio/urlshortener/internal/middleware/logger"
 	"github.com/JustScorpio/urlshortener/internal/repository/sqlite"
@@ -57,6 +58,7 @@ func run() error {
 	if flagShortenerRouterAddr == flagRedirectRouterAddr {
 		r := chi.NewRouter()
 		r.Use(logger.LoggingMiddleware(zapLogger))
+		r.Use(gzipencoder.GZIPEncodingMiddleware())
 		r.Get("/{token}", shURLHandler.GetFullURL)
 		r.With(jsonpacker.JSONPackingMiddleware()).Post("/api/shorten", shURLHandler.ShortenURL)
 		r.Post("/", shURLHandler.ShortenURL)
@@ -66,9 +68,13 @@ func run() error {
 
 	// Если разные - разные сервера для разных хэндлеров в разных горутинах
 	redirectRouter := chi.NewRouter()
+	redirectRouter.Use(logger.LoggingMiddleware(zapLogger))
+	redirectRouter.Use(gzipencoder.GZIPEncodingMiddleware())
 	redirectRouter.Get("/{token}", shURLHandler.GetFullURL)
 
 	shortenerRouter := chi.NewRouter()
+	shortenerRouter.Use(logger.LoggingMiddleware(zapLogger))
+	shortenerRouter.Use(gzipencoder.GZIPEncodingMiddleware())
 	shortenerRouter.With(jsonpacker.JSONPackingMiddleware()).Post("/api/shortener", shURLHandler.ShortenURL)
 	shortenerRouter.Post("/", shURLHandler.ShortenURL)
 
