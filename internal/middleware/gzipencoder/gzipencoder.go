@@ -46,7 +46,6 @@ func GZIPEncodingMiddleware() func(http.Handler) http.Handler {
 			}
 
 			h.ServeHTTP(actualW, r)
-			return
 		})
 	}
 }
