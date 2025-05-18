@@ -16,20 +16,23 @@ type JsonFileShURLRepository struct {
 }
 
 func NewJsonFileShURLRepository(filePath string) (*JsonFileShURLRepository, error) {
-	// Создаем директорию для БД, если ее нет
+	// Создаем директорию, если ее нет
+	dir := filepath.Dir(filePath)
+	if _, err := os.Stat(dir); errors.Is(err, os.ErrNotExist) {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return nil, fmt.Errorf("failed to create directory: %w", err)
+		}
+	}
+
+	// Создаем пустой файл БД, если ее нет
 	if _, err := os.Stat(filePath); errors.Is(err, os.ErrNotExist) {
-		err = os.MkdirAll(filepath.Dir(filePath), 0755)
+		emptyJsonCollection, _ := json.Marshal([]models.ShURL{})
+		err = os.WriteFile(filePath, emptyJsonCollection, 0644)
 
 		if err != nil {
 			return nil, fmt.Errorf("failed to create directory: %w", err)
 		}
 	}
-
-	// открываем файл для чтения и записи в конец
-	// file, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-	// if err != nil {
-	//     return nil, err
-	// }
 
 	return &JsonFileShURLRepository{filePath: filePath}, nil
 }
@@ -78,7 +81,7 @@ func (r *JsonFileShURLRepository) Create(shurl *models.ShURL) error {
 
 	existedShurls = append(existedShurls, *shurl)
 
-	jsonShurls, err := json.MarshalIndent(existedShurls, "", ", ")
+	jsonShurls, err := json.MarshalIndent(existedShurls, "", "   ")
 	if err != nil {
 		return err
 	}

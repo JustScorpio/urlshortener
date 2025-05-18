@@ -31,11 +31,11 @@ func run() error {
 
 	// Берём расположение файла БД из переменной окружения. Иначе - из аргумента
 	if envDBAddr, hasEnv := os.LookupEnv("FILE_STORAGE_PATH"); hasEnv {
-		flagDbFilePath = envDBAddr
+		flagDBFilePath = envDBAddr
 	}
 
 	// Инициализация репозиториев с базой данных
-	repo, err := jsonfile.NewJsonFileShURLRepository(flagDbFilePath)
+	repo, err := jsonfile.NewJsonFileShURLRepository(flagDBFilePath)
 	if err != nil {
 		return err
 	}
