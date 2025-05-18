@@ -10,7 +10,7 @@ import (
 	"github.com/JustScorpio/urlshortener/internal/middleware/gzipencoder"
 	"github.com/JustScorpio/urlshortener/internal/middleware/jsonpacker"
 	"github.com/JustScorpio/urlshortener/internal/middleware/logger"
-	"github.com/JustScorpio/urlshortener/internal/repository/sqlite"
+	"github.com/JustScorpio/urlshortener/internal/repository/jsonfile"
 	"github.com/JustScorpio/urlshortener/internal/services"
 
 	"github.com/go-chi/chi"
@@ -29,12 +29,18 @@ func main() {
 // функция run будет полезна при инициализации зависимостей сервера перед запуском
 func run() error {
 
+	// Берём расположение файла БД из переменной окружения. Иначе - из аргумента
+	if envDBAddr, hasEnv := os.LookupEnv("FILE_STORAGE_PATH"); hasEnv {
+		flagDbFilePath = envDBAddr
+	}
+
 	// Инициализация репозиториев с базой данных
-	repo, err := sqlite.NewSQLiteShURLRepository()
+	repo, err := jsonfile.NewJsonFileShURLRepository(flagDbFilePath)
 	if err != nil {
 		return err
 	}
-	defer repo.DB.Close()
+	//Нечего Не нужно закрывать когда БД .json файл
+	//defer repo.DB.Close()
 
 	// Инициализация сервисов
 	shURLService := services.NewShURLService(repo)

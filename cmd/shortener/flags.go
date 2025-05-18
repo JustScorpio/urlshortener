@@ -11,10 +11,14 @@ var flagShortenerRouterAddr string
 // flagRedirectRouterAddr содержит базовый адрес результирующего сокращённого URL (часть перед токеном)
 var flagRedirectRouterAddr string
 
+// flagDbFilePath содержит путь до файла базы данных (для .json БД)
+var flagDbFilePath string
+
 // parseFlags обрабатывает аргументы командной строки и сохраняет их значения в соответствующих переменных
 func parseFlags() {
 	flag.StringVar(&flagShortenerRouterAddr, "a", ":8080", "address and port to run server")
 	flag.StringVar(&flagRedirectRouterAddr, "b", ":8080", "base address and port for shortened URLs")
+	flag.StringVar(&flagDbFilePath, "f", ":8080", "path to .json database file (applied only if set .json database)")
 	flag.Parse()
 
 	flagShortenerRouterAddr = normalizeAddress(flagShortenerRouterAddr)

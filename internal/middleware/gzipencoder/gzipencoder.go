@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// middleware для преобразования тела запроса из- и в- формат json.
+// middleware для сжатия и разжатия данных.
 func GZIPEncodingMiddleware() func(http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
