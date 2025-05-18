@@ -11,11 +11,11 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-type JsonFileShURLRepository struct {
+type JSONFileShURLRepository struct {
 	filePath string
 }
 
-func NewJsonFileShURLRepository(filePath string) (*JsonFileShURLRepository, error) {
+func NewJSONFileShURLRepository(filePath string) (*JSONFileShURLRepository, error) {
 	// Создаем директорию, если ее нет
 	dir := filepath.Dir(filePath)
 	if _, err := os.Stat(dir); errors.Is(err, os.ErrNotExist) {
@@ -26,22 +26,22 @@ func NewJsonFileShURLRepository(filePath string) (*JsonFileShURLRepository, erro
 
 	// Создаем пустой файл БД, если ее нет
 	if _, err := os.Stat(filePath); errors.Is(err, os.ErrNotExist) {
-		emptyJsonCollection, _ := json.Marshal([]models.ShURL{})
-		err = os.WriteFile(filePath, emptyJsonCollection, 0644)
+		emptyJSONCollection, _ := json.Marshal([]models.ShURL{})
+		err = os.WriteFile(filePath, emptyJSONCollection, 0644)
 
 		if err != nil {
 			return nil, fmt.Errorf("failed to create directory: %w", err)
 		}
 	}
 
-	return &JsonFileShURLRepository{filePath: filePath}, nil
+	return &JSONFileShURLRepository{filePath: filePath}, nil
 }
 
-func (r *JsonFileShURLRepository) GetAll() ([]models.ShURL, error) {
+func (r *JSONFileShURLRepository) GetAll() ([]models.ShURL, error) {
 
 	var file, err = os.ReadFile(r.filePath)
 	if err != nil {
-		return nil, fmt.Errorf("Ошибка чтения файла: %w", err)
+		return nil, fmt.Errorf("ошибка чтения файла: %w", err)
 	}
 
 	var shurls []models.ShURL
@@ -52,7 +52,7 @@ func (r *JsonFileShURLRepository) GetAll() ([]models.ShURL, error) {
 	return shurls, nil
 }
 
-func (r *JsonFileShURLRepository) Get(id string) (*models.ShURL, error) {
+func (r *JSONFileShURLRepository) Get(id string) (*models.ShURL, error) {
 	shurls, err := r.GetAll()
 	if err != nil {
 		return nil, err
@@ -64,10 +64,10 @@ func (r *JsonFileShURLRepository) Get(id string) (*models.ShURL, error) {
 		}
 	}
 
-	return nil, errors.New("Not Found")
+	return nil, errors.New("not Found")
 }
 
-func (r *JsonFileShURLRepository) Create(shurl *models.ShURL) error {
+func (r *JSONFileShURLRepository) Create(shurl *models.ShURL) error {
 	existedShurls, err := r.GetAll()
 	if err != nil {
 		return err
@@ -75,7 +75,7 @@ func (r *JsonFileShURLRepository) Create(shurl *models.ShURL) error {
 
 	for _, existedShurl := range existedShurls {
 		if existedShurl.Token == shurl.Token {
-			return errors.New("Already exists")
+			return errors.New("already exists")
 		}
 	}
 
@@ -89,7 +89,7 @@ func (r *JsonFileShURLRepository) Create(shurl *models.ShURL) error {
 	return os.WriteFile(r.filePath, jsonShurls, 0644)
 }
 
-func (r *JsonFileShURLRepository) Update(shurl *models.ShURL) error {
+func (r *JSONFileShURLRepository) Update(shurl *models.ShURL) error {
 	existedShurls, err := r.GetAll()
 	if err != nil {
 		return err
@@ -108,10 +108,10 @@ func (r *JsonFileShURLRepository) Update(shurl *models.ShURL) error {
 		}
 	}
 
-	return errors.New("NotFound")
+	return errors.New("not found")
 }
 
-func (r *JsonFileShURLRepository) Delete(id string) error {
+func (r *JSONFileShURLRepository) Delete(id string) error {
 	existedShurls, err := r.GetAll()
 	if err != nil {
 		return err
@@ -131,5 +131,5 @@ func (r *JsonFileShURLRepository) Delete(id string) error {
 		}
 	}
 
-	return errors.New("NotFound")
+	return errors.New("not found")
 }

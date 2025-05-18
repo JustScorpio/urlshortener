@@ -35,7 +35,7 @@ func run() error {
 	}
 
 	// Инициализация репозиториев с базой данных
-	repo, err := jsonfile.NewJsonFileShURLRepository(flagDBFilePath)
+	repo, err := jsonfile.NewJSONFileShURLRepository(flagDBFilePath)
 	if err != nil {
 		return err
 	}
