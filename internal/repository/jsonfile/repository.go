@@ -95,11 +95,11 @@ func (r *JSONFileShURLRepository) Update(shurl *models.ShURL) error {
 		return err
 	}
 
-	for _, existedShurl := range existedShurls {
+	for i, existedShurl := range existedShurls {
 		if existedShurl.Token == shurl.Token {
-			existedShurl = *shurl
+			existedShurls[i] = *shurl
 
-			jsonShurls, err := json.MarshalIndent(existedShurls, "", ", ")
+			jsonShurls, err := json.MarshalIndent(existedShurls, "", "   ")
 			if err != nil {
 				return err
 			}
@@ -122,7 +122,7 @@ func (r *JSONFileShURLRepository) Delete(id string) error {
 			existedShurls[i] = existedShurls[len(existedShurls)-1]
 
 			//Возвращаем slice без последнего элемента, где удаляемый элемент заменён последним
-			jsonShurls, err := json.MarshalIndent(existedShurls[:len(existedShurls)-1], "", ", ")
+			jsonShurls, err := json.MarshalIndent(existedShurls[:len(existedShurls)-1], "", "   ")
 			if err != nil {
 				return err
 			}
