@@ -39,8 +39,8 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	//Нечего Не нужно закрывать когда БД .json файл
-	//defer repo.DB.Close()
+
+	defer repo.CloseConnection()
 
 	// Инициализация сервисов
 	shURLService := services.NewShURLService(repo)

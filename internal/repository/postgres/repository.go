@@ -23,7 +23,7 @@ type DBConfiguration struct {
 }
 
 type PostgresShURLRepository struct {
-	DB *sql.DB
+	db *sql.DB
 }
 
 func NewPostgresShURLRepository() (*PostgresShURLRepository, error) {
@@ -77,11 +77,11 @@ func NewPostgresShURLRepository() (*PostgresShURLRepository, error) {
 		return nil, fmt.Errorf("failed to create table shurls: %w", err)
 	}
 
-	return &PostgresShURLRepository{DB: db}, nil
+	return &PostgresShURLRepository{db: db}, nil
 }
 
 func (r *PostgresShURLRepository) GetAll() ([]models.ShURL, error) {
-	rows, err := r.DB.Query("SELECT token, longurl FROM shurls")
+	rows, err := r.db.Query("SELECT token, longurl FROM shurls")
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +107,7 @@ func (r *PostgresShURLRepository) GetAll() ([]models.ShURL, error) {
 
 func (r *PostgresShURLRepository) Get(id string) (*models.ShURL, error) {
 	var shurl models.ShURL
-	err := r.DB.QueryRow("SELECT token, longurl, FROM shurls WHERE token = $1", id).Scan(&shurl.Token, &shurl.LongURL)
+	err := r.db.QueryRow("SELECT token, longurl, FROM shurls WHERE token = $1", id).Scan(&shurl.Token, &shurl.LongURL)
 	if err != nil {
 		return nil, err
 	}
@@ -115,7 +115,7 @@ func (r *PostgresShURLRepository) Get(id string) (*models.ShURL, error) {
 }
 
 func (r *PostgresShURLRepository) Create(shurl *models.ShURL) error {
-	_, err := r.DB.Exec("INSERT INTO shurls (token, longurl) VALUES ($1, $2)", shurl.Token, shurl.LongURL)
+	_, err := r.db.Exec("INSERT INTO shurls (token, longurl) VALUES ($1, $2)", shurl.Token, shurl.LongURL)
 	if err != nil {
 		return err
 	}
@@ -123,11 +123,15 @@ func (r *PostgresShURLRepository) Create(shurl *models.ShURL) error {
 }
 
 func (r *PostgresShURLRepository) Update(shurl *models.ShURL) error {
-	_, err := r.DB.Exec("UPDATE shurls SET longurl = $2 WHERE token = $1", shurl.Token, shurl.LongURL)
+	_, err := r.db.Exec("UPDATE shurls SET longurl = $2 WHERE token = $1", shurl.Token, shurl.LongURL)
 	return err
 }
 
 func (r *PostgresShURLRepository) Delete(id string) error {
-	_, err := r.DB.Exec("DELETE FROM countries WHERE token = $1", id)
+	_, err := r.db.Exec("DELETE FROM countries WHERE token = $1", id)
 	return err
+}
+
+func (r *PostgresShURLRepository) CloseConnection() {
+	r.db.Close()
 }

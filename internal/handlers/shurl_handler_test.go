@@ -61,6 +61,10 @@ func (r *MockRepository) Delete(id string) error {
 	return nil
 }
 
+func (r *MockRepository) CloseConnection() {
+	//Nothing
+}
+
 func TestShURLHandler_GetFullURL(t *testing.T) {
 
 	type want struct {

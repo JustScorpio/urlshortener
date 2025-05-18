@@ -20,7 +20,7 @@ type DBConfiguration struct {
 }
 
 type SQLiteShURLRepository struct {
-	DB *sql.DB
+	db *sql.DB
 }
 
 func NewSQLiteShURLRepository() (*SQLiteShURLRepository, error) {
@@ -61,11 +61,11 @@ func NewSQLiteShURLRepository() (*SQLiteShURLRepository, error) {
 		return nil, fmt.Errorf("failed to create table shurls: %w", err)
 	}
 
-	return &SQLiteShURLRepository{DB: db}, nil
+	return &SQLiteShURLRepository{db: db}, nil
 }
 
 func (r *SQLiteShURLRepository) GetAll() ([]models.ShURL, error) {
-	rows, err := r.DB.Query("SELECT token, longurl FROM shurls")
+	rows, err := r.db.Query("SELECT token, longurl FROM shurls")
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +90,7 @@ func (r *SQLiteShURLRepository) GetAll() ([]models.ShURL, error) {
 
 func (r *SQLiteShURLRepository) Get(id string) (*models.ShURL, error) {
 	var shurl models.ShURL
-	err := r.DB.QueryRow(
+	err := r.db.QueryRow(
 		"SELECT token, longurl FROM shurls WHERE token = ?",
 		id,
 	).Scan(&shurl.Token, &shurl.LongURL)
@@ -102,7 +102,7 @@ func (r *SQLiteShURLRepository) Get(id string) (*models.ShURL, error) {
 }
 
 func (r *SQLiteShURLRepository) Create(shurl *models.ShURL) error {
-	_, err := r.DB.Exec(
+	_, err := r.db.Exec(
 		"INSERT INTO shurls (token, longurl) VALUES (?, ?)",
 		shurl.Token,
 		shurl.LongURL,
@@ -111,7 +111,7 @@ func (r *SQLiteShURLRepository) Create(shurl *models.ShURL) error {
 }
 
 func (r *SQLiteShURLRepository) Update(shurl *models.ShURL) error {
-	_, err := r.DB.Exec(
+	_, err := r.db.Exec(
 		"UPDATE shurls SET longurl = ? WHERE token = ?",
 		shurl.LongURL,
 		shurl.Token,
@@ -120,6 +120,10 @@ func (r *SQLiteShURLRepository) Update(shurl *models.ShURL) error {
 }
 
 func (r *SQLiteShURLRepository) Delete(id string) error {
-	_, err := r.DB.Exec("DELETE FROM shurls WHERE token = ?", id)
+	_, err := r.db.Exec("DELETE FROM shurls WHERE token = ?", id)
 	return err
+}
+
+func (r *SQLiteShURLRepository) CloseConnection() {
+	r.db.Close()
 }

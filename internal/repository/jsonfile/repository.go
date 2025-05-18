@@ -133,3 +133,7 @@ func (r *JSONFileShURLRepository) Delete(id string) error {
 
 	return errors.New("not found")
 }
+
+func (r *JSONFileShURLRepository) CloseConnection() {
+	//Nothing
+}
