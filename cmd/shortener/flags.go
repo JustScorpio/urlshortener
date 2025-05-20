@@ -33,7 +33,7 @@ func normalizeAddress(addr string) string {
 		addr += ":8080"
 	}
 
-	// Убираем чать http://
+	// Убираем часть http://
 	if strings.HasPrefix(addr, "http://") {
 		addr = strings.Replace(addr, "http://", "", 1)
 	}

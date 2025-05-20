@@ -11,6 +11,9 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+var errNotFound = errors.New("not found")
+var errAlreadyExists = errors.New("already exists")
+
 type JSONFileShURLRepository struct {
 	filePath string
 }
@@ -64,7 +67,7 @@ func (r *JSONFileShURLRepository) Get(id string) (*models.ShURL, error) {
 		}
 	}
 
-	return nil, errors.New("not Found")
+	return nil, errNotFound
 }
 
 func (r *JSONFileShURLRepository) Create(shurl *models.ShURL) error {
@@ -75,7 +78,7 @@ func (r *JSONFileShURLRepository) Create(shurl *models.ShURL) error {
 
 	for _, existedShurl := range existedShurls {
 		if existedShurl.Token == shurl.Token {
-			return errors.New("already exists")
+			return errAlreadyExists
 		}
 	}
 
@@ -108,7 +111,7 @@ func (r *JSONFileShURLRepository) Update(shurl *models.ShURL) error {
 		}
 	}
 
-	return errors.New("not found")
+	return errNotFound
 }
 
 func (r *JSONFileShURLRepository) Delete(id string) error {
@@ -131,7 +134,7 @@ func (r *JSONFileShURLRepository) Delete(id string) error {
 		}
 	}
 
-	return errors.New("not found")
+	return errNotFound
 }
 
 func (r *JSONFileShURLRepository) CloseConnection() {

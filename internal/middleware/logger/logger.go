@@ -16,11 +16,9 @@ func NewLogger(level string, isProd bool) (*zap.Logger, error) {
 	}
 
 	// создаём новую конфигурацию логера
-	var cfg zap.Config
+	cfg := zap.NewDevelopmentConfig()
 	if isProd {
 		cfg = zap.NewProductionConfig()
-	} else {
-		cfg = zap.NewDevelopmentConfig()
 	}
 
 	// устанавливаем уровень
@@ -37,7 +35,7 @@ func NewLogger(level string, isProd bool) (*zap.Logger, error) {
 // middleware-логер для входящих HTTP-запросов.
 // aka функция, возвращающая функцию которая принимает функцию и возвращает функцию
 func LoggingMiddleware(logger *zap.Logger) func(http.Handler) http.Handler {
-	return func(h http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()
 
@@ -45,7 +43,7 @@ func LoggingMiddleware(logger *zap.Logger) func(http.Handler) http.Handler {
 			rw := &responseWriter{w, http.StatusOK, 0, ""}
 
 			// Пропускаем запрос дальше
-			h.ServeHTTP(rw, r)
+			next.ServeHTTP(rw, r)
 
 			// Логируем после обработки
 			duration := time.Since(start)

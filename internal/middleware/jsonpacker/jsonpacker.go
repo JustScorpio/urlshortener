@@ -10,7 +10,7 @@ import (
 
 // middleware для преобразования тела запроса из- и в- формат json.
 func JSONPackingMiddleware() func(http.Handler) http.Handler {
-	return func(h http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 			var buf bytes.Buffer
@@ -24,6 +24,7 @@ func JSONPackingMiddleware() func(http.Handler) http.Handler {
 			var reqData struct {
 				URL string `json:"url"`
 			}
+
 			if err = json.Unmarshal(buf.Bytes(), &reqData); err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
@@ -43,7 +44,7 @@ func JSONPackingMiddleware() func(http.Handler) http.Handler {
 			}
 
 			// Пропускаем запрос дальше
-			h.ServeHTTP(wrappedWriter, r)
+			next.ServeHTTP(wrappedWriter, r)
 		})
 	}
 }
@@ -66,6 +67,7 @@ func (w *responseWriter) Write(data []byte) (int, error) {
 	var respData struct {
 		Result string `json:"result"`
 	}
+
 	respData.Result = string(data)
 	jsonData, err := json.Marshal(respData)
 	if err != nil {
