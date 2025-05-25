@@ -37,7 +37,7 @@ func NewPostgresShURLRepository(connStr string) (*PostgresShURLRepository, error
 		connStr = fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=%s", conf.Host, conf.User, conf.Password, conf.DBName, conf.Port, conf.SslMode)
 	}
 
-	//Создание базы данных (в тестах используется уже созданная)
+	//Создание базы данных (Закомментировано т.к. в тестах используется уже созданная)
 	// defaultDB, err := pgx.Connect(context.Background(), connStr)
 	// if err != nil {
 	// 	return nil, fmt.Errorf("failed to connect to default database: %w", err)
