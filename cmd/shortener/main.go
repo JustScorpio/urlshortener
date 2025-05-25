@@ -7,7 +7,10 @@ import (
 	"os"
 
 	"github.com/JustScorpio/urlshortener/internal/handlers"
-	"github.com/JustScorpio/urlshortener/internal/repository/sqlite"
+	"github.com/JustScorpio/urlshortener/internal/middleware/gzipencoder"
+	"github.com/JustScorpio/urlshortener/internal/middleware/jsonpacker"
+	"github.com/JustScorpio/urlshortener/internal/middleware/logger"
+	"github.com/JustScorpio/urlshortener/internal/repository/jsonfile"
 	"github.com/JustScorpio/urlshortener/internal/services"
 
 	"github.com/go-chi/chi"
@@ -26,18 +29,31 @@ func main() {
 // функция run будет полезна при инициализации зависимостей сервера перед запуском
 func run() error {
 
+	// Берём расположение файла БД из переменной окружения. Иначе - из аргумента
+	if envDBAddr, hasEnv := os.LookupEnv("FILE_STORAGE_PATH"); hasEnv {
+		flagDBFilePath = envDBAddr
+	}
+
 	// Инициализация репозиториев с базой данных
-	repo, err := sqlite.NewSQLiteShURLRepository()
+	repo, err := jsonfile.NewJSONFileShURLRepository(flagDBFilePath)
 	if err != nil {
 		return err
 	}
-	defer repo.DB.Close()
+
+	defer repo.CloseConnection()
 
 	// Инициализация сервисов
 	shURLService := services.NewShURLService(repo)
 
 	// Инициализация обработчиков
 	shURLHandler := handlers.NewShURLHandler(shURLService, flagRedirectRouterAddr)
+
+	//Инициализация логгера
+	zapLogger, err := logger.NewLogger("Info", true)
+	if err != nil {
+		return err
+	}
+	defer zapLogger.Sync()
 
 	// Берём адрес сервера из переменной окружения. Иначе - из аргумента
 	if envServerAddr, hasEnv := os.LookupEnv("SERVER_ADDRESS"); hasEnv {
@@ -47,7 +63,10 @@ func run() error {
 	// Сравниваем нормализованные адреса. Если адрес один - запускаем то и то на одном порту
 	if flagShortenerRouterAddr == flagRedirectRouterAddr {
 		r := chi.NewRouter()
+		r.Use(logger.LoggingMiddleware(zapLogger))
+		r.Use(gzipencoder.GZIPEncodingMiddleware())
 		r.Get("/{token}", shURLHandler.GetFullURL)
+		r.With(jsonpacker.JSONPackingMiddleware()).Post("/api/shorten", shURLHandler.ShortenURL)
 		r.Post("/", shURLHandler.ShortenURL)
 		fmt.Println("Running server on", flagShortenerRouterAddr)
 		return http.ListenAndServe(flagShortenerRouterAddr, r)
@@ -55,9 +74,14 @@ func run() error {
 
 	// Если разные - разные сервера для разных хэндлеров в разных горутинах
 	redirectRouter := chi.NewRouter()
+	redirectRouter.Use(logger.LoggingMiddleware(zapLogger))
+	redirectRouter.Use(gzipencoder.GZIPEncodingMiddleware())
 	redirectRouter.Get("/{token}", shURLHandler.GetFullURL)
 
 	shortenerRouter := chi.NewRouter()
+	shortenerRouter.Use(logger.LoggingMiddleware(zapLogger))
+	shortenerRouter.Use(gzipencoder.GZIPEncodingMiddleware())
+	shortenerRouter.With(jsonpacker.JSONPackingMiddleware()).Post("/api/shortener", shURLHandler.ShortenURL)
 	shortenerRouter.Post("/", shURLHandler.ShortenURL)
 
 	errCh := make(chan error)

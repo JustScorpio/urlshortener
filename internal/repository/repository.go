@@ -11,4 +11,6 @@ type IRepository[T models.Entity] interface {
 	Create(entity *T) error
 	Update(entity *T) error
 	Delete(id string) error
+
+	CloseConnection()
 }

@@ -57,13 +57,6 @@ func (h *ShURLHandler) ShortenURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Автотесты говорят что НЕЛЬЗЯ проверять content-type. Ок, как скажете
-	// if r.Header.Get("Content-Type") != "text/plain" {
-	// 	// разрешаем только Content-Type: text/plain
-	// 	w.WriteHeader(http.StatusUnsupportedMediaType)
-	// 	return
-	// }
-
 	//Читаем тело запроса
 	longURL, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -109,7 +102,8 @@ func (h *ShURLHandler) ShortenURL(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	w.Header().Add("Content-Type", "text/plain")
+	//Content-type по умолчанию text/plain
+	// w.Header().Add("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte("http://" + h.shURLBaseAddr + "/" + token))
 }
