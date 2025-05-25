@@ -7,7 +7,7 @@ import (
 	"fmt"
 
 	"github.com/JustScorpio/urlshortener/internal/models"
-	_ "github.com/lib/pq"
+	_ "github.com/jackc/pgx"
 )
 
 //go:embed config.json
