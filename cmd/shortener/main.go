@@ -10,7 +10,7 @@ import (
 	"github.com/JustScorpio/urlshortener/internal/middleware/gzipencoder"
 	"github.com/JustScorpio/urlshortener/internal/middleware/jsonpacker"
 	"github.com/JustScorpio/urlshortener/internal/middleware/logger"
-	"github.com/JustScorpio/urlshortener/internal/repository/sqlite"
+	"github.com/JustScorpio/urlshortener/internal/repository/postgres"
 	"github.com/JustScorpio/urlshortener/internal/services"
 
 	"github.com/go-chi/chi"
@@ -41,7 +41,7 @@ func run() error {
 	}
 
 	// Инициализация репозиториев с базой данных
-	repo, err := sqlite.NewSQLiteShURLRepository()
+	repo, err := postgres.NewPostgresShURLRepository(flagDBConnStr)
 	if err != nil {
 		return err
 	}
