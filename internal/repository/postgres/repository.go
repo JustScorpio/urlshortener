@@ -28,38 +28,39 @@ type PostgresShURLRepository struct {
 
 func NewPostgresShURLRepository(connStr string) (*PostgresShURLRepository, error) {
 	var conf DBConfiguration
-	if err := json.Unmarshal(configContent, &conf); err != nil {
-		return nil, fmt.Errorf("failed to decode config: %w", err)
-	}
 
 	if connStr == "" {
-		connStr = fmt.Sprintf("host=%s user=%s password=%s dbname=postgres port=%s sslmode=%s", conf.Host, conf.User, conf.Password, conf.Port, conf.SslMode)
-	}
-
-	defaultDB, err := pgx.Connect(context.Background(), connStr)
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to default database: %w", err)
-	}
-	defer defaultDB.Close(context.Background())
-
-	// Проверка и создание базы данных
-	var dbExists bool
-	err = defaultDB.QueryRow(context.Background(), "SELECT EXISTS (SELECT 1 FROM pg_database WHERE datname = $1)", conf.DBName).Scan(&dbExists)
-	if err != nil {
-		return nil, fmt.Errorf("failed to check database existence: %w", err)
-	}
-
-	// Создание базы данных, если она не существует
-	if !dbExists {
-		_, err = defaultDB.Exec(context.Background(), fmt.Sprintf("CREATE DATABASE %s", conf.DBName))
-		if err != nil {
-			return nil, fmt.Errorf("failed to create database: %w", err)
+		if err := json.Unmarshal(configContent, &conf); err != nil {
+			return nil, fmt.Errorf("failed to decode config: %w", err)
 		}
+
+		connStr = fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=%s", conf.Host, conf.User, conf.Password, conf.DBName, conf.Port, conf.SslMode)
 	}
 
-	// Подключение к созданной базе данных
-	connString := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=%s", conf.Host, conf.User, conf.Password, conf.DBName, conf.Port, conf.SslMode)
-	db, err := pgx.Connect(context.Background(), connString)
+	//Создание базы данных (в тестах используется уже созданная)
+	// defaultDB, err := pgx.Connect(context.Background(), connStr)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed to connect to default database: %w", err)
+	// }
+	// defer defaultDB.Close(context.Background())
+
+	// // Проверка и создание базы данных
+	// var dbExists bool
+	// err = defaultDB.QueryRow(context.Background(), "SELECT EXISTS (SELECT 1 FROM pg_database WHERE datname = $1)", conf.DBName).Scan(&dbExists)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed to check database existence: %w", err)
+	// }
+
+	// // Создание базы данных, если она не существует
+	// if !dbExists {
+	// 	_, err = defaultDB.Exec(context.Background(), fmt.Sprintf("CREATE DATABASE %s", conf.DBName))
+	// 	if err != nil {
+	// 		return nil, fmt.Errorf("failed to create database: %w", err)
+	// 	}
+	// }
+
+	// Подключение к базе данных
+	db, err := pgx.Connect(context.Background(), connStr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
