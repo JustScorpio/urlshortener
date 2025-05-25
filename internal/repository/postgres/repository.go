@@ -3,7 +3,6 @@ package postgres
 import (
 	"context"
 	_ "embed"
-	"encoding/json"
 	"fmt"
 
 	"github.com/JustScorpio/urlshortener/internal/models"
@@ -27,15 +26,15 @@ type PostgresShURLRepository struct {
 }
 
 func NewPostgresShURLRepository(connStr string) (*PostgresShURLRepository, error) {
-	var conf DBConfiguration
+	// var conf DBConfiguration
 
-	if connStr == "" {
-		if err := json.Unmarshal(configContent, &conf); err != nil {
-			return nil, fmt.Errorf("failed to decode config: %w", err)
-		}
+	// if connStr == "" {
+	// 	if err := json.Unmarshal(configContent, &conf); err != nil {
+	// 		return nil, fmt.Errorf("failed to decode config: %w", err)
+	// 	}
 
-		connStr = fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=%s", conf.Host, conf.User, conf.Password, conf.DBName, conf.Port, conf.SslMode)
-	}
+	// 	connStr = fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=%s", conf.Host, conf.User, conf.Password, conf.DBName, conf.Port, conf.SslMode)
+	// }
 
 	//Создание базы данных (Закомментировано т.к. в тестах используется уже созданная)
 	// defaultDB, err := pgx.Connect(context.Background(), connStr)
