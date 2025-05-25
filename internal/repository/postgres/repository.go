@@ -26,8 +26,8 @@ type PostgresShURLRepository struct {
 }
 
 func NewPostgresShURLRepository(connStr string) (*PostgresShURLRepository, error) {
+	//Если передана пустая строка - парсим конфиг
 	// var conf DBConfiguration
-
 	// if connStr == "" {
 	// 	if err := json.Unmarshal(configContent, &conf); err != nil {
 	// 		return nil, fmt.Errorf("failed to decode config: %w", err)
