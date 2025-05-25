@@ -65,6 +65,10 @@ func (r *MockRepository) CloseConnection() {
 	//Nothing
 }
 
+func (r *MockRepository) PingDB() bool {
+	return true
+}
+
 func TestShURLHandler_GetFullURL(t *testing.T) {
 
 	type want struct {

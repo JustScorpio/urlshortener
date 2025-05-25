@@ -13,4 +13,5 @@ type IRepository[T models.Entity] interface {
 	Delete(id string) error
 
 	CloseConnection()
+	PingDB() bool
 }

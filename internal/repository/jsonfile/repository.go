@@ -140,3 +140,8 @@ func (r *JSONFileShURLRepository) Delete(id string) error {
 func (r *JSONFileShURLRepository) CloseConnection() {
 	//Nothing
 }
+
+func (r *JSONFileShURLRepository) PingDB() bool {
+	_, err := os.Stat(r.filePath)
+	return err == nil
+}

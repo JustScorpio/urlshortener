@@ -7,7 +7,7 @@ import (
 	"fmt"
 
 	"github.com/JustScorpio/urlshortener/internal/models"
-	_ "github.com/jackc/pgx"
+	_ "github.com/lib/pq"
 )
 
 //go:embed config.json
@@ -26,14 +26,17 @@ type PostgresShURLRepository struct {
 	db *sql.DB
 }
 
-func NewPostgresShURLRepository() (*PostgresShURLRepository, error) {
+func NewPostgresShURLRepository(connStr string) (*PostgresShURLRepository, error) {
 	var conf DBConfiguration
 	if err := json.Unmarshal(configContent, &conf); err != nil {
 		return nil, fmt.Errorf("failed to decode config: %w", err)
 	}
 
-	var defaultConnString = fmt.Sprintf("host=%s user=%s password=%s dbname=postgres port=%s sslmode=%s", conf.Host, conf.User, conf.Password, conf.Port, conf.SslMode)
-	defaultDB, err := sql.Open("postgres", defaultConnString)
+	if connStr == "" {
+		connStr = fmt.Sprintf("host=%s user=%s password=%s dbname=postgres port=%s sslmode=%s", conf.Host, conf.User, conf.Password, conf.Port, conf.SslMode)
+	}
+
+	defaultDB, err := sql.Open("postgres", connStr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to default database: %w", err)
 	}
@@ -70,8 +73,8 @@ func NewPostgresShURLRepository() (*PostgresShURLRepository, error) {
 	_, err = db.Exec(`
 		CREATE TABLE IF NOT EXISTS shurls (
 			token VARCHAR(8) PRIMARY KEY,
-			longurl TEXT NOT NULL,
-		);
+			longurl TEXT NOT NULL
+		)
 	`)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create table shurls: %w", err)
@@ -107,7 +110,7 @@ func (r *PostgresShURLRepository) GetAll() ([]models.ShURL, error) {
 
 func (r *PostgresShURLRepository) Get(id string) (*models.ShURL, error) {
 	var shurl models.ShURL
-	err := r.db.QueryRow("SELECT token, longurl, FROM shurls WHERE token = $1", id).Scan(&shurl.Token, &shurl.LongURL)
+	err := r.db.QueryRow("SELECT token, longurl FROM shurls WHERE token = $1", id).Scan(&shurl.Token, &shurl.LongURL)
 	if err != nil {
 		return nil, err
 	}
@@ -134,4 +137,9 @@ func (r *PostgresShURLRepository) Delete(id string) error {
 
 func (r *PostgresShURLRepository) CloseConnection() {
 	r.db.Close()
+}
+
+func (r *PostgresShURLRepository) PingDB() bool {
+	err := r.db.Ping()
+	return err == nil
 }
