@@ -12,8 +12,8 @@ import (
 	"github.com/JustScorpio/urlshortener/internal/middleware/logger"
 	"github.com/JustScorpio/urlshortener/internal/models"
 	"github.com/JustScorpio/urlshortener/internal/repository"
+	"github.com/JustScorpio/urlshortener/internal/repository/jsonfile"
 	"github.com/JustScorpio/urlshortener/internal/repository/postgres"
-	"github.com/JustScorpio/urlshortener/internal/repository/sqlite"
 	"github.com/JustScorpio/urlshortener/internal/services"
 
 	"github.com/go-chi/chi"
@@ -49,7 +49,7 @@ func run() error {
 	if flagDBConnStr != "" {
 		repo, err = postgres.NewPostgresShURLRepository(flagDBConnStr)
 	} else {
-		repo, err = sqlite.NewSQLiteShURLRepository()
+		repo, err = jsonfile.NewJSONFileShURLRepository(flagDBFilePath)
 	}
 
 	if err != nil {
