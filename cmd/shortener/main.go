@@ -10,9 +10,6 @@ import (
 	"github.com/JustScorpio/urlshortener/internal/middleware/gzipencoder"
 	"github.com/JustScorpio/urlshortener/internal/middleware/jsonpacker"
 	"github.com/JustScorpio/urlshortener/internal/middleware/logger"
-	"github.com/JustScorpio/urlshortener/internal/models"
-	"github.com/JustScorpio/urlshortener/internal/repository"
-	"github.com/JustScorpio/urlshortener/internal/repository/jsonfile"
 	"github.com/JustScorpio/urlshortener/internal/repository/postgres"
 	"github.com/JustScorpio/urlshortener/internal/services"
 
@@ -38,19 +35,13 @@ func run() error {
 	}
 
 	//Для postgresql-базы данных берём строку подключения к БД из переменной окружения. Иначе - из аргумента.
-	//Если и то и то пусто - внутри NewPostgresShURLRepository будет задействован конфиг
+	//Если и то и то пусто - берём базу на основе json-файла
 	if envDBConnStr, hasEnv := os.LookupEnv("DATABASE_DSN"); hasEnv {
 		flagDBConnStr = envDBConnStr
 	}
 
 	// Инициализация репозиториев с базой данных
-	var repo repository.IRepository[models.ShURL]
-	var err error
-	if flagDBConnStr != "" {
-		repo, err = postgres.NewPostgresShURLRepository(flagDBConnStr)
-	} else {
-		repo, err = jsonfile.NewJSONFileShURLRepository(flagDBFilePath)
-	}
+	repo, err := postgres.NewPostgresShURLRepository(flagDBConnStr)
 
 	if err != nil {
 		return err
