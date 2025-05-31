@@ -88,7 +88,7 @@ func (r *PostgresShURLRepository) GetAll() ([]models.ShURL, error) {
 	if err != nil {
 		return nil, err
 	}
-	//Иначе статиктест не пускает. Ок, как скажете
+	//Иначе статиктест не пускает
 	if err = rows.Err(); err != nil {
 		return nil, err
 	}
