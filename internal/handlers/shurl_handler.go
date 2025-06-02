@@ -99,7 +99,7 @@ func (h *ShURLHandler) ShortenURL(w http.ResponseWriter, r *http.Request) {
 	}
 
 	token := ""
-	var statusCode int
+	statusCode := http.StatusCreated
 	for _, existedURL := range existedURLs {
 		if existedURL.LongURL == string(longURL) {
 			statusCode = http.StatusConflict
@@ -112,7 +112,6 @@ func (h *ShURLHandler) ShortenURL(w http.ResponseWriter, r *http.Request) {
 		//Добавление shurl в БД
 		generate, _ := nanoid.CustomASCII("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", 8)
 		token = generate() // Пример: "EwHXdJfB"
-		statusCode = http.StatusCreated
 
 		shurl := models.ShURL{
 			Token:   token,
