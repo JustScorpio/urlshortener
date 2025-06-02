@@ -198,7 +198,7 @@ func TestShURLHandler_ShortenURL(t *testing.T) {
 				url:    shurl1.LongURL,
 			},
 			want: want{
-				statusCode: http.StatusCreated,
+				statusCode: http.StatusConflict,
 				token:      shurl1.Token,
 			},
 		},
