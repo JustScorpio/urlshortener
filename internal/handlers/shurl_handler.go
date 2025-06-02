@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"io"
 	"net/http"
 	"strings"
@@ -58,7 +59,7 @@ func (h *ShURLHandler) ShortenURL(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//Читаем тело запроса
-	longURL, err := io.ReadAll(r.Body)
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, "Failed to read request body: "+err.Error(), http.StatusBadRequest)
 		return
@@ -66,9 +67,28 @@ func (h *ShURLHandler) ShortenURL(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	//Если Body пуст
-	if len(longURL) == 0 {
+	if len(body) == 0 {
 		http.Error(w, "Body is empty", http.StatusBadRequest)
 		return
+	}
+
+	//Проверяем и при необходимости ивзлекаем URL из JSON
+	var longURL string
+	contentType := r.Header.Get("Content-Type")
+	if contentType == "application/json" {
+		var reqData struct {
+			URL string `json:"url"`
+		}
+
+		if err = json.Unmarshal(body, &reqData); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		// Конвертируем в строку
+		longURL = reqData.URL
+	} else {
+		longURL = string(body)
 	}
 
 	// Проверяем наличие урла в БД
@@ -93,7 +113,7 @@ func (h *ShURLHandler) ShortenURL(w http.ResponseWriter, r *http.Request) {
 
 		shurl := models.ShURL{
 			Token:   token,
-			LongURL: string(longURL),
+			LongURL: longURL,
 		}
 		err = h.service.Create(&shurl)
 		if err != nil {
@@ -102,8 +122,29 @@ func (h *ShURLHandler) ShortenURL(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	var responseBody []byte
+	shortURL := "http://" + h.shURLBaseAddr + "/" + token
+	acceptHeader := r.Header.Get("Accept")
+	if strings.Contains(acceptHeader, "application/json") {
+		// Конвертируем plain text в JSON
+		var respData struct {
+			Result string `json:"result"`
+		}
+
+		respData.Result = shortURL
+		jsonData, err := json.Marshal(respData)
+		if err != nil {
+			return
+		}
+
+		w.Header().Add("Content-Type", "application/json")
+		responseBody = jsonData
+	} else {
+		responseBody = []byte(shortURL)
+	}
+
 	//Content-type по умолчанию text/plain
 	// w.Header().Add("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte("http://" + h.shURLBaseAddr + "/" + token))
+	w.Write(responseBody)
 }

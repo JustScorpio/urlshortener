@@ -14,11 +14,15 @@ var flagRedirectRouterAddr string
 // flagDbFilePath содержит путь до файла базы данных (для .json БД)
 var flagDBFilePath string
 
+// flagDBConnStr содержит строку подключения к БД (для postgres)
+var flagDBConnStr string
+
 // parseFlags обрабатывает аргументы командной строки и сохраняет их значения в соответствующих переменных
 func parseFlags() {
 	flag.StringVar(&flagShortenerRouterAddr, "a", ":8080", "address and port to run server")
 	flag.StringVar(&flagRedirectRouterAddr, "b", ":8080", "base address and port for shortened URLs")
 	flag.StringVar(&flagDBFilePath, "f", "data/shortener.json", "path to .json database file (only for .json database)")
+	flag.StringVar(&flagDBConnStr, "d", "", "postgresql connection string (only for postgresql)")
 	flag.Parse()
 
 	flagShortenerRouterAddr = normalizeAddress(flagShortenerRouterAddr)
