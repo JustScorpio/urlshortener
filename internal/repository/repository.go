@@ -4,7 +4,7 @@ import (
 	"github.com/JustScorpio/urlshortener/internal/models"
 )
 
-// Не видел нигде рекомендаций по неймингу интерфейсов, но считаю уместным отличать их от структур
+// Интерфейс реализующий паттерн "репозиторий"
 type IRepository[T models.Entity] interface {
 	GetAll() ([]T, error)
 	Get(id string) (*T, error)
