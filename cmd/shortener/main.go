@@ -91,8 +91,8 @@ func run() error {
 		r.Use(gzipencoder.GZIPEncodingMiddleware())
 		r.Get("/ping", pingFunc)
 		r.Get("/{token}", shURLHandler.GetFullURL)
-		r.Post("/api/shorten/batch", shURLHandler.ShortenURL)
 		r.Post("/api/shorten", shURLHandler.ShortenURL)
+		r.Post("/api/shorten/batch", shURLHandler.ShortenURLsBatch)
 		r.Post("/", shURLHandler.ShortenURL)
 		fmt.Println("Running server on", flagShortenerRouterAddr)
 		return http.ListenAndServe(flagShortenerRouterAddr, r)
@@ -108,8 +108,8 @@ func run() error {
 	shortenerRouter := chi.NewRouter()
 	shortenerRouter.Use(logger.LoggingMiddleware(zapLogger))
 	shortenerRouter.Use(gzipencoder.GZIPEncodingMiddleware())
-	shortenerRouter.Post("/api/shorten/batch", shURLHandler.ShortenURL)
 	shortenerRouter.Post("/api/shorten", shURLHandler.ShortenURL)
+	shortenerRouter.Post("/api/shorten/batch", shURLHandler.ShortenURLsBatch)
 	redirectRouter.Get("/ping", pingFunc) //Дублируется в обоих роутерах
 	shortenerRouter.Post("/", shURLHandler.ShortenURL)
 
