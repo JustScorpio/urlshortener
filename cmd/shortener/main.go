@@ -8,9 +8,11 @@ import (
 
 	"github.com/JustScorpio/urlshortener/internal/handlers"
 	"github.com/JustScorpio/urlshortener/internal/middleware/gzipencoder"
-	"github.com/JustScorpio/urlshortener/internal/middleware/jsonpacker"
 	"github.com/JustScorpio/urlshortener/internal/middleware/logger"
+	"github.com/JustScorpio/urlshortener/internal/models"
+	"github.com/JustScorpio/urlshortener/internal/repository"
 	"github.com/JustScorpio/urlshortener/internal/repository/jsonfile"
+	"github.com/JustScorpio/urlshortener/internal/repository/postgres"
 	"github.com/JustScorpio/urlshortener/internal/services"
 
 	"github.com/go-chi/chi"
@@ -29,13 +31,26 @@ func main() {
 // функция run будет полезна при инициализации зависимостей сервера перед запуском
 func run() error {
 
-	// Берём расположение файла БД из переменной окружения. Иначе - из аргумента
+	//Для jsonfile-базы данных берём расположение файла БД из переменной окружения. Иначе - из аргумента
 	if envDBAddr, hasEnv := os.LookupEnv("FILE_STORAGE_PATH"); hasEnv {
 		flagDBFilePath = envDBAddr
 	}
 
+	//Для postgresql-базы данных берём строку подключения к БД из переменной окружения. Иначе - из аргумента.
+	//Если и то и то пусто - берём базу на основе json-файла
+	if envDBConnStr, hasEnv := os.LookupEnv("DATABASE_DSN"); hasEnv {
+		flagDBConnStr = envDBConnStr
+	}
+
 	// Инициализация репозиториев с базой данных
-	repo, err := jsonfile.NewJSONFileShURLRepository(flagDBFilePath)
+	var repo repository.IRepository[models.ShURL]
+	var err error
+	if flagDBConnStr != "" {
+		repo, err = postgres.NewPostgresShURLRepository(flagDBConnStr)
+	} else {
+		repo, err = jsonfile.NewJSONFileShURLRepository(flagDBFilePath)
+	}
+
 	if err != nil {
 		return err
 	}
@@ -60,13 +75,24 @@ func run() error {
 		flagShortenerRouterAddr = normalizeAddress(envServerAddr)
 	}
 
+	// Проверка подключения к БД
+	pingFunc := func(w http.ResponseWriter, r *http.Request) {
+		if repo.PingDB() {
+			w.WriteHeader(http.StatusOK)
+		} else {
+			w.WriteHeader(http.StatusBadRequest)
+		}
+	}
+
 	// Сравниваем нормализованные адреса. Если адрес один - запускаем то и то на одном порту
 	if flagShortenerRouterAddr == flagRedirectRouterAddr {
 		r := chi.NewRouter()
 		r.Use(logger.LoggingMiddleware(zapLogger))
 		r.Use(gzipencoder.GZIPEncodingMiddleware())
+		r.Get("/ping", pingFunc)
 		r.Get("/{token}", shURLHandler.GetFullURL)
-		r.With(jsonpacker.JSONPackingMiddleware()).Post("/api/shorten", shURLHandler.ShortenURL)
+		r.Post("/api/shorten", shURLHandler.ShortenURL)
+		r.Post("/api/shorten/batch", shURLHandler.ShortenURLsBatch)
 		r.Post("/", shURLHandler.ShortenURL)
 		fmt.Println("Running server on", flagShortenerRouterAddr)
 		return http.ListenAndServe(flagShortenerRouterAddr, r)
@@ -76,12 +102,15 @@ func run() error {
 	redirectRouter := chi.NewRouter()
 	redirectRouter.Use(logger.LoggingMiddleware(zapLogger))
 	redirectRouter.Use(gzipencoder.GZIPEncodingMiddleware())
+	redirectRouter.Get("/ping", pingFunc) //Дублируется в обоих роутерах
 	redirectRouter.Get("/{token}", shURLHandler.GetFullURL)
 
 	shortenerRouter := chi.NewRouter()
 	shortenerRouter.Use(logger.LoggingMiddleware(zapLogger))
 	shortenerRouter.Use(gzipencoder.GZIPEncodingMiddleware())
-	shortenerRouter.With(jsonpacker.JSONPackingMiddleware()).Post("/api/shortener", shURLHandler.ShortenURL)
+	shortenerRouter.Post("/api/shorten", shURLHandler.ShortenURL)
+	shortenerRouter.Post("/api/shorten/batch", shURLHandler.ShortenURLsBatch)
+	redirectRouter.Get("/ping", pingFunc) //Дублируется в обоих роутерах
 	shortenerRouter.Post("/", shURLHandler.ShortenURL)
 
 	errCh := make(chan error)

@@ -127,3 +127,8 @@ func (r *SQLiteShURLRepository) Delete(id string) error {
 func (r *SQLiteShURLRepository) CloseConnection() {
 	r.db.Close()
 }
+
+func (r *SQLiteShURLRepository) PingDB() bool {
+	err := r.db.Ping()
+	return err == nil
+}
