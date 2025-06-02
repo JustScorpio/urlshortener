@@ -8,7 +8,6 @@ import (
 
 	"github.com/JustScorpio/urlshortener/internal/handlers"
 	"github.com/JustScorpio/urlshortener/internal/middleware/gzipencoder"
-	"github.com/JustScorpio/urlshortener/internal/middleware/jsonpacker"
 	"github.com/JustScorpio/urlshortener/internal/middleware/logger"
 	"github.com/JustScorpio/urlshortener/internal/models"
 	"github.com/JustScorpio/urlshortener/internal/repository"
@@ -92,7 +91,7 @@ func run() error {
 		r.Use(gzipencoder.GZIPEncodingMiddleware())
 		r.Get("/ping", pingFunc)
 		r.Get("/{token}", shURLHandler.GetFullURL)
-		r.With(jsonpacker.JSONPackingMiddleware()).Post("/api/shorten", shURLHandler.ShortenURL)
+		r.Post("/api/shorten", shURLHandler.ShortenURL)
 		r.Post("/", shURLHandler.ShortenURL)
 		fmt.Println("Running server on", flagShortenerRouterAddr)
 		return http.ListenAndServe(flagShortenerRouterAddr, r)
@@ -108,7 +107,7 @@ func run() error {
 	shortenerRouter := chi.NewRouter()
 	shortenerRouter.Use(logger.LoggingMiddleware(zapLogger))
 	shortenerRouter.Use(gzipencoder.GZIPEncodingMiddleware())
-	shortenerRouter.With(jsonpacker.JSONPackingMiddleware()).Post("/api/shortener", shURLHandler.ShortenURL)
+	shortenerRouter.Post("/api/shorten", shURLHandler.ShortenURL)
 	redirectRouter.Get("/ping", pingFunc) //Дублируется в обоих роутерах
 	shortenerRouter.Post("/", shURLHandler.ShortenURL)
 
