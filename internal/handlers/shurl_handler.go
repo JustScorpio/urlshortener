@@ -99,8 +99,10 @@ func (h *ShURLHandler) ShortenURL(w http.ResponseWriter, r *http.Request) {
 	}
 
 	token := ""
+	var statusCode int
 	for _, existedURL := range existedURLs {
 		if existedURL.LongURL == string(longURL) {
+			statusCode = http.StatusConflict
 			token = existedURL.Token
 			break
 		}
@@ -110,6 +112,7 @@ func (h *ShURLHandler) ShortenURL(w http.ResponseWriter, r *http.Request) {
 		//Добавление shurl в БД
 		generate, _ := nanoid.CustomASCII("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", 8)
 		token = generate() // Пример: "EwHXdJfB"
+		statusCode = http.StatusCreated
 
 		shurl := models.ShURL{
 			Token:   token,
@@ -146,7 +149,7 @@ func (h *ShURLHandler) ShortenURL(w http.ResponseWriter, r *http.Request) {
 
 	//Content-type по умолчанию text/plain
 	// w.Header().Add("Content-Type", "text/plain")
-	w.WriteHeader(http.StatusCreated)
+	w.WriteHeader(statusCode)
 	w.Write(responseBody)
 }
 
@@ -204,6 +207,8 @@ func (h *ShURLHandler) ShortenURLsBatch(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	//Если будет хотя бы 1 новая - поменяется на 201. Иначе останется 409 т.к. тогда все урлы в теле - дубли
+	statusCode := http.StatusConflict
 	for _, reqItem := range reqData {
 		longURL := reqItem.URL
 		// Проверяем наличие урла в БД
@@ -219,6 +224,7 @@ func (h *ShURLHandler) ShortenURLsBatch(w http.ResponseWriter, r *http.Request) 
 			//Добавление shurl в БД
 			generate, _ := nanoid.CustomASCII("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", 8)
 			token = generate() // Пример: "EwHXdJfB"
+			statusCode = http.StatusCreated
 
 			shurl := models.ShURL{
 				Token:   token,
@@ -244,6 +250,6 @@ func (h *ShURLHandler) ShortenURLsBatch(w http.ResponseWriter, r *http.Request) 
 	}
 
 	w.Header().Add("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
+	w.WriteHeader(statusCode)
 	w.Write(jsonData)
 }
