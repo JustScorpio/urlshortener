@@ -2,13 +2,13 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"strings"
 
-	"github.com/JustScorpio/urlshortener/internal/models"
+	"github.com/JustScorpio/urlshortener/internal/customerrors"
 	"github.com/JustScorpio/urlshortener/internal/services"
-	"github.com/jaevor/go-nanoid"
 )
 
 type ShURLHandler struct {
@@ -91,59 +91,42 @@ func (h *ShURLHandler) ShortenURL(w http.ResponseWriter, r *http.Request) {
 		longURL = string(body)
 	}
 
-	// Проверяем наличие урла в БД
-	existedURLs, err := h.service.GetAll()
-	if err != nil {
-		http.Error(w, "Failed to check existed urls: "+err.Error(), http.StatusBadRequest)
-		return
-	}
+	//Создаём shurl
+	shurl, err := h.service.Create(longURL)
 
-	token := ""
+	//Определяем статус код
 	statusCode := http.StatusCreated
-	for _, existedURL := range existedURLs {
-		if existedURL.LongURL == string(longURL) {
-			statusCode = http.StatusConflict
-			token = existedURL.Token
-			break
+	if err != nil {
+		var httpErr *customerrors.HttpError
+		if errors.As(err, &httpErr) {
+			statusCode = httpErr.Code
 		}
 	}
 
-	if token == "" {
-		//Добавление shurl в БД
-		generate, _ := nanoid.CustomASCII("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", 8)
-		token = generate() // Пример: "EwHXdJfB"
-
-		shurl := models.ShURL{
-			Token:   token,
-			LongURL: longURL,
-		}
-		err = h.service.Create(&shurl)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-	}
-
-	//Если Header "Accept" == "application/json" - возвращаем ввиде json
 	var responseBody []byte
-	shortURL := "http://" + h.shURLBaseAddr + "/" + token
-	acceptHeader := r.Header.Get("Accept")
-	if strings.Contains(acceptHeader, "application/json") {
-		// Конвертируем plain text в JSON
-		var respData struct {
-			Result string `json:"result"`
-		}
+	//Если в при создании возникла ошибка, shurl может быть пуст => тело тоже пусто
+	if shurl != nil {
+		shortURL := "http://" + h.shURLBaseAddr + "/" + shurl.Token
 
-		respData.Result = shortURL
-		jsonData, err := json.Marshal(respData)
-		if err != nil {
-			return
-		}
+		//Если Header "Accept" == "application/json" - возвращаем ввиде json
+		acceptHeader := r.Header.Get("Accept")
+		if strings.Contains(acceptHeader, "application/json") {
+			// Конвертируем plain text в JSON
+			var respData struct {
+				Result string `json:"result"`
+			}
 
-		w.Header().Add("Content-Type", "application/json")
-		responseBody = jsonData
-	} else {
-		responseBody = []byte(shortURL)
+			respData.Result = shortURL
+			jsonData, err := json.Marshal(respData)
+			if err != nil {
+				return
+			}
+
+			w.Header().Add("Content-Type", "application/json")
+			responseBody = jsonData
+		} else {
+			responseBody = []byte(shortURL)
+		}
 	}
 
 	//Content-type по умолчанию text/plain
@@ -177,7 +160,6 @@ func (h *ShURLHandler) ShortenURLsBatch(w http.ResponseWriter, r *http.Request) 
 	//Только Content-Type: JSON
 	contentType := r.Header.Get("Content-Type")
 	if contentType != "application/json" {
-		// разрешаем только POST-запросы
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -194,51 +176,23 @@ func (h *ShURLHandler) ShortenURLsBatch(w http.ResponseWriter, r *http.Request) 
 	}
 	var respData []respItem
 
-	//Ивзлекаем URL из JSON
+	//Извлекаем URL из JSON
 	if err = json.Unmarshal(body, &reqData); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	existedURLs, err := h.service.GetAll()
-	if err != nil {
-		http.Error(w, "Failed to check existed urls: "+err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	//Если будет хотя бы 1 новая - поменяется на 201. Иначе останется 409 т.к. тогда все урлы в теле - дубли
-	statusCode := http.StatusConflict
 	for _, reqItem := range reqData {
 		longURL := reqItem.URL
-		// Проверяем наличие урла в БД
-		token := ""
-		for _, existedURL := range existedURLs {
-			if existedURL.LongURL == string(longURL) {
-				token = existedURL.Token
-				break
-			}
-		}
-
-		if token == "" {
-			//Добавление shurl в БД
-			generate, _ := nanoid.CustomASCII("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", 8)
-			token = generate() // Пример: "EwHXdJfB"
-			statusCode = http.StatusCreated
-
-			shurl := models.ShURL{
-				Token:   token,
-				LongURL: longURL,
-			}
-			err = h.service.Create(&shurl)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
+		shurl, err := h.service.Create(longURL)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
 
 		respData = append(respData, respItem{
 			ID:  reqItem.ID,
-			URL: "http://" + h.shURLBaseAddr + "/" + token,
+			URL: "http://" + h.shURLBaseAddr + "/" + shurl.Token,
 		})
 	}
 
@@ -249,6 +203,6 @@ func (h *ShURLHandler) ShortenURLsBatch(w http.ResponseWriter, r *http.Request) 
 	}
 
 	w.Header().Add("Content-Type", "application/json")
-	w.WriteHeader(statusCode)
+	w.WriteHeader(http.StatusCreated)
 	w.Write(jsonData)
 }
