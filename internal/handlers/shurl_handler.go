@@ -97,7 +97,7 @@ func (h *ShURLHandler) ShortenURL(w http.ResponseWriter, r *http.Request) {
 	//Определяем статус код
 	statusCode := http.StatusCreated
 	if err != nil {
-		var httpErr *customerrors.HttpError
+		var httpErr *customerrors.HTTPError
 		if errors.As(err, &httpErr) {
 			statusCode = httpErr.Code
 		}

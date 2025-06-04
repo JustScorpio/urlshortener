@@ -36,7 +36,7 @@ func (s *ShURLService) Create(longURL string) (*models.ShURL, error) {
 
 	for _, existedURL := range existedURLs {
 		if existedURL.LongURL == string(longURL) {
-			return &existedURL, customerrors.NewAlreadyExistsError(fmt.Errorf("Shurl for %v already exists", longURL))
+			return &existedURL, customerrors.NewAlreadyExistsError(fmt.Errorf("shurl for %v already exists", longURL))
 		}
 	}
 
