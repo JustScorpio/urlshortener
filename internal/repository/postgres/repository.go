@@ -25,7 +25,7 @@ type PostgresShURLRepository struct {
 	db *pgx.Conn
 }
 
-func NewPostgresShURLRepository(ctx context.Context, connStr string) (*PostgresShURLRepository, error) {
+func NewPostgresShURLRepository(connStr string) (*PostgresShURLRepository, error) {
 	//Если передана пустая строка - парсим конфиг
 	// var conf DBConfiguration
 	// if connStr == "" {
@@ -59,18 +59,18 @@ func NewPostgresShURLRepository(ctx context.Context, connStr string) (*PostgresS
 	// }
 
 	// Подключение к базе данных
-	db, err := pgx.Connect(ctx, connStr)
+	db, err := pgx.Connect(context.Background(), connStr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 
 	//Проверка подключения
-	if err = db.Ping(ctx); err != nil {
+	if err = db.Ping(context.Background()); err != nil {
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
 	// Создание таблицы shurls, если её нет
-	_, err = db.Exec(ctx, `
+	_, err = db.Exec(context.Background(), `
 		CREATE TABLE IF NOT EXISTS shurls (
 			token VARCHAR(8) PRIMARY KEY,
 			longurl TEXT NOT NULL UNIQUE
@@ -140,11 +140,11 @@ func (r *PostgresShURLRepository) Delete(ctx context.Context, id string) error {
 	return err
 }
 
-func (r *PostgresShURLRepository) CloseConnection(ctx context.Context) {
-	r.db.Close(ctx)
+func (r *PostgresShURLRepository) CloseConnection() {
+	r.db.Close(context.Background())
 }
 
-func (r *PostgresShURLRepository) PingDB(ctx context.Context) bool {
-	err := r.db.Ping(ctx)
+func (r *PostgresShURLRepository) PingDB() bool {
+	err := r.db.Ping(context.Background())
 	return err == nil
 }

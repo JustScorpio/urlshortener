@@ -163,11 +163,11 @@ func (r *JSONFileShURLRepository) Delete(ctx context.Context, id string) error {
 	return errNotFound
 }
 
-func (r *JSONFileShURLRepository) CloseConnection(ctx context.Context) {
+func (r *JSONFileShURLRepository) CloseConnection() {
 	//Nothing
 }
 
-func (r *JSONFileShURLRepository) PingDB(ctx context.Context) bool {
+func (r *JSONFileShURLRepository) PingDB() bool {
 	_, err := os.Stat(r.filePath)
 	return err == nil
 }

@@ -14,6 +14,6 @@ type IRepository[T models.Entity] interface {
 	Update(ctx context.Context, entity *T) error
 	Delete(ctx context.Context, id string) error
 
-	CloseConnection(ctx context.Context)
-	PingDB(ctx context.Context) bool
+	CloseConnection()
+	PingDB() bool
 }

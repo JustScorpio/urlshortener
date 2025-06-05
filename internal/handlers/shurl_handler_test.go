@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"errors"
 	"maps"
 	"net/http"
@@ -21,11 +22,11 @@ type MockRepository struct {
 	db map[string]models.ShURL
 }
 
-func (r *MockRepository) GetAll() ([]models.ShURL, error) {
+func (r *MockRepository) GetAll(ctx context.Context) ([]models.ShURL, error) {
 	return slices.Collect(maps.Values(r.db)), nil
 }
 
-func (r *MockRepository) Get(id string) (*models.ShURL, error) {
+func (r *MockRepository) Get(ctx context.Context, id string) (*models.ShURL, error) {
 	val, exists := r.db[id]
 	if !exists {
 		return nil, errors.New("Entry not found")
@@ -34,7 +35,7 @@ func (r *MockRepository) Get(id string) (*models.ShURL, error) {
 	return &val, nil
 }
 
-func (r *MockRepository) Create(shurl *models.ShURL) error {
+func (r *MockRepository) Create(ctx context.Context, shurl *models.ShURL) error {
 	if _, exists := r.db[shurl.Token]; exists {
 		return errors.New("Entry with such id already exists")
 	}
@@ -43,7 +44,7 @@ func (r *MockRepository) Create(shurl *models.ShURL) error {
 	return nil
 }
 
-func (r *MockRepository) Update(shurl *models.ShURL) error {
+func (r *MockRepository) Update(ctx context.Context, shurl *models.ShURL) error {
 	if _, exists := r.db[shurl.Token]; !exists {
 		return nil
 	}
@@ -52,7 +53,7 @@ func (r *MockRepository) Update(shurl *models.ShURL) error {
 	return nil
 }
 
-func (r *MockRepository) Delete(id string) error {
+func (r *MockRepository) Delete(ctx context.Context, id string) error {
 	if _, exists := r.db[id]; !exists {
 		return nil
 	}
