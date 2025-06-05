@@ -25,7 +25,7 @@ type PostgresShURLRepository struct {
 	db *pgx.Conn
 }
 
-func NewPostgresShURLRepository(connStr string) (*PostgresShURLRepository, error) {
+func NewPostgresShURLRepository(ctx context.Context, connStr string) (*PostgresShURLRepository, error) {
 	//Если передана пустая строка - парсим конфиг
 	// var conf DBConfiguration
 	// if connStr == "" {
@@ -37,40 +37,40 @@ func NewPostgresShURLRepository(connStr string) (*PostgresShURLRepository, error
 	// }
 
 	//Создание базы данных (Закомментировано т.к. в тестах используется уже созданная)
-	// defaultDB, err := pgx.Connect(context.Background(), connStr)
+	// defaultDB, err := pgx.Connect(ctx, connStr)
 	// if err != nil {
 	// 	return nil, fmt.Errorf("failed to connect to default database: %w", err)
 	// }
-	// defer defaultDB.Close(context.Background())
+	// defer defaultDB.Close(ctx)
 
 	// // Проверка и создание базы данных
 	// var dbExists bool
-	// err = defaultDB.QueryRow(context.Background(), "SELECT EXISTS (SELECT 1 FROM pg_database WHERE datname = $1)", conf.DBName).Scan(&dbExists)
+	// err = defaultDB.QueryRow(ctx, "SELECT EXISTS (SELECT 1 FROM pg_database WHERE datname = $1)", conf.DBName).Scan(&dbExists)
 	// if err != nil {
 	// 	return nil, fmt.Errorf("failed to check database existence: %w", err)
 	// }
 
 	// // Создание базы данных, если она не существует
 	// if !dbExists {
-	// 	_, err = defaultDB.Exec(context.Background(), fmt.Sprintf("CREATE DATABASE %s", conf.DBName))
+	// 	_, err = defaultDB.Exec(ctx, fmt.Sprintf("CREATE DATABASE %s", conf.DBName))
 	// 	if err != nil {
 	// 		return nil, fmt.Errorf("failed to create database: %w", err)
 	// 	}
 	// }
 
 	// Подключение к базе данных
-	db, err := pgx.Connect(context.Background(), connStr)
+	db, err := pgx.Connect(ctx, connStr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 
 	//Проверка подключения
-	if err = db.Ping(context.Background()); err != nil {
+	if err = db.Ping(ctx); err != nil {
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
 	// Создание таблицы shurls, если её нет
-	_, err = db.Exec(context.Background(), `
+	_, err = db.Exec(ctx, `
 		CREATE TABLE IF NOT EXISTS shurls (
 			token VARCHAR(8) PRIMARY KEY,
 			longurl TEXT NOT NULL UNIQUE
@@ -83,20 +83,25 @@ func NewPostgresShURLRepository(connStr string) (*PostgresShURLRepository, error
 	return &PostgresShURLRepository{db: db}, nil
 }
 
-func (r *PostgresShURLRepository) GetAll() ([]models.ShURL, error) {
-	rows, err := r.db.Query(context.Background(), "SELECT token, longurl FROM shurls")
+func (r *PostgresShURLRepository) GetAll(ctx context.Context) ([]models.ShURL, error) {
+	rows, err := r.db.Query(ctx, "SELECT token, longurl FROM shurls")
 	if err != nil {
-		return nil, err
-	}
-	//Иначе статиктест не пускает
-	if err = rows.Err(); err != nil {
 		return nil, err
 	}
 
 	defer rows.Close()
 
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
 	var shurls []models.ShURL
 	for rows.Next() {
+		// Проверяем не отменен ли контекст
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+
 		var shurl models.ShURL
 		err := rows.Scan(&shurl.Token, &shurl.LongURL)
 		if err != nil {
@@ -108,38 +113,38 @@ func (r *PostgresShURLRepository) GetAll() ([]models.ShURL, error) {
 	return shurls, nil
 }
 
-func (r *PostgresShURLRepository) Get(id string) (*models.ShURL, error) {
+func (r *PostgresShURLRepository) Get(ctx context.Context, id string) (*models.ShURL, error) {
 	var shurl models.ShURL
-	err := r.db.QueryRow(context.Background(), "SELECT token, longurl FROM shurls WHERE token = $1", id).Scan(&shurl.Token, &shurl.LongURL)
+	err := r.db.QueryRow(ctx, "SELECT token, longurl FROM shurls WHERE token = $1", id).Scan(&shurl.Token, &shurl.LongURL)
 	if err != nil {
 		return nil, err
 	}
 	return &shurl, nil
 }
 
-func (r *PostgresShURLRepository) Create(shurl *models.ShURL) error {
-	_, err := r.db.Exec(context.Background(), "INSERT INTO shurls (token, longurl) VALUES ($1, $2)", shurl.Token, shurl.LongURL)
+func (r *PostgresShURLRepository) Create(ctx context.Context, shurl *models.ShURL) error {
+	_, err := r.db.Exec(ctx, "INSERT INTO shurls (token, longurl) VALUES ($1, $2)", shurl.Token, shurl.LongURL)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (r *PostgresShURLRepository) Update(shurl *models.ShURL) error {
-	_, err := r.db.Exec(context.Background(), "UPDATE shurls SET longurl = $2 WHERE token = $1", shurl.Token, shurl.LongURL)
+func (r *PostgresShURLRepository) Update(ctx context.Context, shurl *models.ShURL) error {
+	_, err := r.db.Exec(ctx, "UPDATE shurls SET longurl = $2 WHERE token = $1", shurl.Token, shurl.LongURL)
 	return err
 }
 
-func (r *PostgresShURLRepository) Delete(id string) error {
-	_, err := r.db.Exec(context.Background(), "DELETE FROM countries WHERE token = $1", id)
+func (r *PostgresShURLRepository) Delete(ctx context.Context, id string) error {
+	_, err := r.db.Exec(ctx, "DELETE FROM countries WHERE token = $1", id)
 	return err
 }
 
-func (r *PostgresShURLRepository) CloseConnection() {
-	r.db.Close(context.Background())
+func (r *PostgresShURLRepository) CloseConnection(ctx context.Context) {
+	r.db.Close(ctx)
 }
 
-func (r *PostgresShURLRepository) PingDB() bool {
-	err := r.db.Ping(context.Background())
+func (r *PostgresShURLRepository) PingDB(ctx context.Context) bool {
+	err := r.db.Ping(ctx)
 	return err == nil
 }
