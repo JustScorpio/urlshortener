@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/JustScorpio/urlshortener/internal/customerrors"
@@ -18,18 +19,18 @@ func NewShURLService(repo repository.IRepository[models.ShURL]) *ShURLService {
 	return &ShURLService{repo: repo}
 }
 
-func (s *ShURLService) GetAll() ([]models.ShURL, error) {
-	return s.repo.GetAll()
+func (s *ShURLService) GetAll(ctx context.Context) ([]models.ShURL, error) {
+	return s.repo.GetAll(ctx)
 }
 
-func (s *ShURLService) Get(token string) (*models.ShURL, error) {
-	return s.repo.Get(token)
+func (s *ShURLService) Get(ctx context.Context, token string) (*models.ShURL, error) {
+	return s.repo.Get(ctx, token)
 }
 
-func (s *ShURLService) Create(longURL string) (*models.ShURL, error) {
+func (s *ShURLService) Create(ctx context.Context, longURL string) (*models.ShURL, error) {
 
 	// Проверка наличие урла в БД
-	existedURLs, err := s.GetAll()
+	existedURLs, err := s.GetAll(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -48,7 +49,7 @@ func (s *ShURLService) Create(longURL string) (*models.ShURL, error) {
 		LongURL: longURL,
 	}
 
-	err = s.repo.Create(&shurl)
+	err = s.repo.Create(ctx, &shurl)
 	if err != nil {
 		return nil, err
 	}
@@ -56,10 +57,10 @@ func (s *ShURLService) Create(longURL string) (*models.ShURL, error) {
 	return &shurl, nil
 }
 
-func (s *ShURLService) Update(shurl *models.ShURL) error {
-	return s.repo.Update(shurl)
+func (s *ShURLService) Update(ctx context.Context, shurl *models.ShURL) error {
+	return s.repo.Update(ctx, shurl)
 }
 
-func (s *ShURLService) Delete(token string) error {
-	return s.repo.Delete(token)
+func (s *ShURLService) Delete(ctx context.Context, token string) error {
+	return s.repo.Delete(ctx, token)
 }

@@ -40,7 +40,7 @@ func (h *ShURLHandler) GetFullURL(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Получение сущности из сервиса
-	shURL, err := h.service.Get(token)
+	shURL, err := h.service.Get(r.Context(), token)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -92,7 +92,7 @@ func (h *ShURLHandler) ShortenURL(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//Создаём shurl
-	shurl, err := h.service.Create(longURL)
+	shurl, err := h.service.Create(r.Context(), longURL)
 
 	//Определяем статус код
 	statusCode := http.StatusCreated
@@ -184,7 +184,7 @@ func (h *ShURLHandler) ShortenURLsBatch(w http.ResponseWriter, r *http.Request) 
 
 	for _, reqItem := range reqData {
 		longURL := reqItem.URL
-		shurl, err := h.service.Create(longURL)
+		shurl, err := h.service.Create(r.Context(), longURL)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
