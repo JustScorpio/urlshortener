@@ -1,6 +1,7 @@
 package sqlite
 
 import (
+	"context"
 	"database/sql"
 	_ "embed"
 	"encoding/json"
@@ -24,6 +25,8 @@ type SQLiteShURLRepository struct {
 }
 
 func NewSQLiteShURLRepository() (*SQLiteShURLRepository, error) {
+	//TODO: задействовать context при создании, подключении БД
+
 	var conf DBConfiguration
 	if err := json.Unmarshal(configContent, &conf); err != nil {
 		return nil, fmt.Errorf("failed to decode config: %w", err)
@@ -64,8 +67,8 @@ func NewSQLiteShURLRepository() (*SQLiteShURLRepository, error) {
 	return &SQLiteShURLRepository{db: db}, nil
 }
 
-func (r *SQLiteShURLRepository) GetAll() ([]models.ShURL, error) {
-	rows, err := r.db.Query("SELECT token, longurl FROM shurls")
+func (r *SQLiteShURLRepository) GetAll(ctx context.Context) ([]models.ShURL, error) {
+	rows, err := r.db.QueryContext(ctx, "SELECT token, longurl FROM shurls")
 	if err != nil {
 		return nil, err
 	}
@@ -77,6 +80,11 @@ func (r *SQLiteShURLRepository) GetAll() ([]models.ShURL, error) {
 
 	var shurls []models.ShURL
 	for rows.Next() {
+		// Проверяем не отменен ли контекст
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+
 		var shurl models.ShURL
 		err := rows.Scan(&shurl.Token, &shurl.LongURL)
 		if err != nil {
@@ -88,9 +96,10 @@ func (r *SQLiteShURLRepository) GetAll() ([]models.ShURL, error) {
 	return shurls, nil
 }
 
-func (r *SQLiteShURLRepository) Get(id string) (*models.ShURL, error) {
+func (r *SQLiteShURLRepository) Get(ctx context.Context, id string) (*models.ShURL, error) {
 	var shurl models.ShURL
-	err := r.db.QueryRow(
+	err := r.db.QueryRowContext(
+		ctx,
 		"SELECT token, longurl FROM shurls WHERE token = ?",
 		id,
 	).Scan(&shurl.Token, &shurl.LongURL)
@@ -101,8 +110,9 @@ func (r *SQLiteShURLRepository) Get(id string) (*models.ShURL, error) {
 	return &shurl, nil
 }
 
-func (r *SQLiteShURLRepository) Create(shurl *models.ShURL) error {
-	_, err := r.db.Exec(
+func (r *SQLiteShURLRepository) Create(ctx context.Context, shurl *models.ShURL) error {
+	_, err := r.db.ExecContext(
+		ctx,
 		"INSERT INTO shurls (token, longurl) VALUES (?, ?)",
 		shurl.Token,
 		shurl.LongURL,
@@ -110,8 +120,9 @@ func (r *SQLiteShURLRepository) Create(shurl *models.ShURL) error {
 	return err
 }
 
-func (r *SQLiteShURLRepository) Update(shurl *models.ShURL) error {
-	_, err := r.db.Exec(
+func (r *SQLiteShURLRepository) Update(ctx context.Context, shurl *models.ShURL) error {
+	_, err := r.db.ExecContext(
+		ctx,
 		"UPDATE shurls SET longurl = ? WHERE token = ?",
 		shurl.LongURL,
 		shurl.Token,
@@ -119,11 +130,17 @@ func (r *SQLiteShURLRepository) Update(shurl *models.ShURL) error {
 	return err
 }
 
-func (r *SQLiteShURLRepository) Delete(id string) error {
-	_, err := r.db.Exec("DELETE FROM shurls WHERE token = ?", id)
+func (r *SQLiteShURLRepository) Delete(ctx context.Context, id string) error {
+	_, err := r.db.ExecContext(ctx, "DELETE FROM shurls WHERE token = ?", id)
 	return err
 }
 
-func (r *SQLiteShURLRepository) CloseConnection() {
+func (r *SQLiteShURLRepository) CloseConnection(ctx context.Context) {
+	//TODO: задействовать context при хакрытии соединения с БД (если это уместно при закрытии соединения)
 	r.db.Close()
+}
+
+func (r *SQLiteShURLRepository) PingDB(ctx context.Context) bool {
+	err := r.db.PingContext(ctx)
+	return err == nil
 }

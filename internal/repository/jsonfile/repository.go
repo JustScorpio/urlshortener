@@ -1,6 +1,7 @@
 package jsonfile
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -40,11 +41,16 @@ func NewJSONFileShURLRepository(filePath string) (*JSONFileShURLRepository, erro
 	return &JSONFileShURLRepository{filePath: filePath}, nil
 }
 
-func (r *JSONFileShURLRepository) GetAll() ([]models.ShURL, error) {
+func (r *JSONFileShURLRepository) GetAll(ctx context.Context) ([]models.ShURL, error) {
 
 	var file, err = os.ReadFile(r.filePath)
 	if err != nil {
 		return nil, fmt.Errorf("ошибка чтения файла: %w", err)
+	}
+
+	// Проверяем, не отменен ли контекст пока читали файл
+	if err := ctx.Err(); err != nil {
+		return nil, err
 	}
 
 	var shurls []models.ShURL
@@ -55,13 +61,18 @@ func (r *JSONFileShURLRepository) GetAll() ([]models.ShURL, error) {
 	return shurls, nil
 }
 
-func (r *JSONFileShURLRepository) Get(id string) (*models.ShURL, error) {
-	shurls, err := r.GetAll()
+func (r *JSONFileShURLRepository) Get(ctx context.Context, id string) (*models.ShURL, error) {
+	shurls, err := r.GetAll(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	for _, shurl := range shurls {
+		// Проверяем, не отменен ли контекст перед началом работы
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+
 		if shurl.Token == id {
 			return &shurl, nil
 		}
@@ -70,13 +81,18 @@ func (r *JSONFileShURLRepository) Get(id string) (*models.ShURL, error) {
 	return nil, errNotFound
 }
 
-func (r *JSONFileShURLRepository) Create(shurl *models.ShURL) error {
-	existedShurls, err := r.GetAll()
+func (r *JSONFileShURLRepository) Create(ctx context.Context, shurl *models.ShURL) error {
+	existedShurls, err := r.GetAll(ctx)
 	if err != nil {
 		return err
 	}
 
 	for _, existedShurl := range existedShurls {
+		// Проверяем, не отменен ли контекст перед началом работы
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+
 		if existedShurl.Token == shurl.Token {
 			return errAlreadyExists
 		}
@@ -92,13 +108,18 @@ func (r *JSONFileShURLRepository) Create(shurl *models.ShURL) error {
 	return os.WriteFile(r.filePath, jsonShurls, 0644)
 }
 
-func (r *JSONFileShURLRepository) Update(shurl *models.ShURL) error {
-	existedShurls, err := r.GetAll()
+func (r *JSONFileShURLRepository) Update(ctx context.Context, shurl *models.ShURL) error {
+	existedShurls, err := r.GetAll(ctx)
 	if err != nil {
 		return err
 	}
 
 	for i, existedShurl := range existedShurls {
+		// Проверяем, не отменен ли контекст перед началом работы
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+
 		if existedShurl.Token == shurl.Token {
 			existedShurls[i] = *shurl
 
@@ -114,13 +135,18 @@ func (r *JSONFileShURLRepository) Update(shurl *models.ShURL) error {
 	return errNotFound
 }
 
-func (r *JSONFileShURLRepository) Delete(id string) error {
-	existedShurls, err := r.GetAll()
+func (r *JSONFileShURLRepository) Delete(ctx context.Context, id string) error {
+	existedShurls, err := r.GetAll(ctx)
 	if err != nil {
 		return err
 	}
 
 	for i, existedShurl := range existedShurls {
+		// Проверяем, не отменен ли контекст перед началом работы
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+
 		if existedShurl.Token == id {
 			existedShurls[i] = existedShurls[len(existedShurls)-1]
 
@@ -139,4 +165,9 @@ func (r *JSONFileShURLRepository) Delete(id string) error {
 
 func (r *JSONFileShURLRepository) CloseConnection() {
 	//Nothing
+}
+
+func (r *JSONFileShURLRepository) PingDB() bool {
+	_, err := os.Stat(r.filePath)
+	return err == nil
 }
