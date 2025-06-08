@@ -57,7 +57,7 @@ func NewSQLiteShURLRepository() (*SQLiteShURLRepository, error) {
 	_, err = db.Exec(`
 		CREATE TABLE IF NOT EXISTS shurls (
 			token TEXT PRIMARY KEY,
-			longurl TEXT NOT NULL
+			longurl TEXT NOT NULL,
 			createdby TEXT NOT NULL
 		);
 	`)

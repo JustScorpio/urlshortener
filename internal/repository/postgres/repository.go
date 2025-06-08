@@ -73,7 +73,7 @@ func NewPostgresShURLRepository(connStr string) (*PostgresShURLRepository, error
 	_, err = db.Exec(context.Background(), `
 		CREATE TABLE IF NOT EXISTS shurls (
 			token VARCHAR(8) PRIMARY KEY,
-			longurl TEXT NOT NULL UNIQUE
+			longurl TEXT NOT NULL UNIQUE,
 			createdby TEXT NOT NULL
 		)
 	`)

@@ -92,7 +92,7 @@ func AuthMiddleware() func(http.Handler) http.Handler {
 			}
 
 			// Добавляем UUID в контекст запроса
-			ctx := customcontext.WithUserId(r.Context(), userID)
+			ctx := customcontext.WithUserID(r.Context(), userID)
 			next.ServeHTTP(w, r.WithContext(ctx))
 
 		})

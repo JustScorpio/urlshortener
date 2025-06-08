@@ -93,7 +93,7 @@ func (h *ShURLHandler) ShortenURL(w http.ResponseWriter, r *http.Request) {
 		longURL = string(body)
 	}
 
-	userID := customcontext.GetUserId(r.Context())
+	userID := customcontext.GetUserID(r.Context())
 
 	//Создаём shurl
 	shurl, err := h.service.Create(r.Context(), dtos.NewShURL{
@@ -189,7 +189,7 @@ func (h *ShURLHandler) ShortenURLsBatch(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	userID := customcontext.GetUserId(r.Context())
+	userID := customcontext.GetUserID(r.Context())
 
 	for _, reqItem := range reqData {
 		longURL := reqItem.URL

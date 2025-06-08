@@ -2,16 +2,19 @@ package customcontext
 
 import "context"
 
+// Определяем собственный тип для ключа
+type contextKey int
+
 const (
-	userIdKey = "user_id"
+	userIDKey contextKey = iota
 )
 
-func WithUserId(ctx context.Context, userID string) context.Context {
-	return context.WithValue(ctx, userIdKey, userID)
+func WithUserID(ctx context.Context, userID string) context.Context {
+	return context.WithValue(ctx, userIDKey, userID)
 }
 
-func GetUserId(ctx context.Context) string {
-	userID := ctx.Value(userIdKey)
+func GetUserID(ctx context.Context) string {
+	userID := ctx.Value(userIDKey)
 	if userID == nil {
 		userID = ""
 	}
