@@ -228,12 +228,13 @@ func (h *ShURLHandler) GetShURLsByUserID(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	//Не спрашиваем - не предусмотрено автотестами
 	//Только Accept: JSON
-	contentType := r.Header.Get("Accept")
-	if contentType != "application/json" {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
+	// contentType := r.Header.Get("Accept")
+	// if contentType != "application/json" {
+	// 	w.WriteHeader(http.StatusBadRequest)
+	// 	return
+	// }
 
 	reqUser := chi.URLParam(r, "user")
 
