@@ -9,7 +9,7 @@ import (
 	"github.com/JustScorpio/urlshortener/internal/handlers"
 	"github.com/JustScorpio/urlshortener/internal/middleware/gzipencoder"
 	"github.com/JustScorpio/urlshortener/internal/middleware/logger"
-	"github.com/JustScorpio/urlshortener/internal/models"
+	"github.com/JustScorpio/urlshortener/internal/models/entities"
 	"github.com/JustScorpio/urlshortener/internal/repository"
 	"github.com/JustScorpio/urlshortener/internal/repository/jsonfile"
 	"github.com/JustScorpio/urlshortener/internal/repository/postgres"
@@ -43,7 +43,7 @@ func run() error {
 	}
 
 	// Инициализация репозиториев с базой данных
-	var repo repository.IRepository[models.ShURL]
+	var repo repository.IRepository[entities.ShURL]
 	var err error
 	if flagDBConnStr != "" {
 		repo, err = postgres.NewPostgresShURLRepository(flagDBConnStr)

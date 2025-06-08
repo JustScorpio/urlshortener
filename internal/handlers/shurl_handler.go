@@ -7,7 +7,9 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/JustScorpio/urlshortener/internal/customcontext"
 	"github.com/JustScorpio/urlshortener/internal/customerrors"
+	"github.com/JustScorpio/urlshortener/internal/models/dtos"
 	"github.com/JustScorpio/urlshortener/internal/services"
 )
 
@@ -91,8 +93,13 @@ func (h *ShURLHandler) ShortenURL(w http.ResponseWriter, r *http.Request) {
 		longURL = string(body)
 	}
 
+	userID := customcontext.GetUserId(r.Context())
+
 	//Создаём shurl
-	shurl, err := h.service.Create(r.Context(), longURL)
+	shurl, err := h.service.Create(r.Context(), dtos.NewShURL{
+		LongURL:   longURL,
+		CreatedBy: userID,
+	})
 
 	//Определяем статус код
 	statusCode := http.StatusCreated
@@ -182,9 +189,14 @@ func (h *ShURLHandler) ShortenURLsBatch(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	userID := customcontext.GetUserId(r.Context())
+
 	for _, reqItem := range reqData {
 		longURL := reqItem.URL
-		shurl, err := h.service.Create(r.Context(), longURL)
+		shurl, err := h.service.Create(r.Context(), dtos.NewShURL{
+			LongURL:   longURL,
+			CreatedBy: userID,
+		})
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

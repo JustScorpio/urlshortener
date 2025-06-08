@@ -5,29 +5,30 @@ import (
 	"fmt"
 
 	"github.com/JustScorpio/urlshortener/internal/customerrors"
-	"github.com/JustScorpio/urlshortener/internal/models"
+	"github.com/JustScorpio/urlshortener/internal/models/dtos"
+	"github.com/JustScorpio/urlshortener/internal/models/entities"
 	"github.com/JustScorpio/urlshortener/internal/repository"
 	"github.com/jaevor/go-nanoid"
 )
 
 type ShURLService struct {
 	//ВАЖНО: В Go интерфейсы УЖЕ ЯВЛЯЮТСЯ ССЫЛОЧНЫМ ТИПОМ (под капотом — указатель на структуру)
-	repo repository.IRepository[models.ShURL]
+	repo repository.IRepository[entities.ShURL]
 }
 
-func NewShURLService(repo repository.IRepository[models.ShURL]) *ShURLService {
+func NewShURLService(repo repository.IRepository[entities.ShURL]) *ShURLService {
 	return &ShURLService{repo: repo}
 }
 
-func (s *ShURLService) GetAll(ctx context.Context) ([]models.ShURL, error) {
+func (s *ShURLService) GetAll(ctx context.Context) ([]entities.ShURL, error) {
 	return s.repo.GetAll(ctx)
 }
 
-func (s *ShURLService) Get(ctx context.Context, token string) (*models.ShURL, error) {
+func (s *ShURLService) Get(ctx context.Context, token string) (*entities.ShURL, error) {
 	return s.repo.Get(ctx, token)
 }
 
-func (s *ShURLService) Create(ctx context.Context, longURL string) (*models.ShURL, error) {
+func (s *ShURLService) Create(ctx context.Context, newURL dtos.NewShURL) (*entities.ShURL, error) {
 
 	// Проверка наличие урла в БД
 	existedURLs, err := s.GetAll(ctx)
@@ -35,8 +36,10 @@ func (s *ShURLService) Create(ctx context.Context, longURL string) (*models.ShUR
 		return nil, err
 	}
 
+	longURL := newURL.LongURL
+
 	for _, existedURL := range existedURLs {
-		if existedURL.LongURL == string(longURL) {
+		if existedURL.LongURL == longURL {
 			return &existedURL, customerrors.NewAlreadyExistsError(fmt.Errorf("shurl for %v already exists", longURL))
 		}
 	}
@@ -44,9 +47,10 @@ func (s *ShURLService) Create(ctx context.Context, longURL string) (*models.ShUR
 	//Добавление shurl в БД
 	generate, _ := nanoid.CustomASCII("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", 8)
 	token := generate() // Пример: "EwHXdJfB"
-	shurl := models.ShURL{
-		Token:   token,
-		LongURL: longURL,
+	shurl := entities.ShURL{
+		Token:     token,
+		LongURL:   longURL,
+		CreatedBy: newURL.CreatedBy,
 	}
 
 	err = s.repo.Create(ctx, &shurl)
@@ -57,7 +61,7 @@ func (s *ShURLService) Create(ctx context.Context, longURL string) (*models.ShUR
 	return &shurl, nil
 }
 
-func (s *ShURLService) Update(ctx context.Context, shurl *models.ShURL) error {
+func (s *ShURLService) Update(ctx context.Context, shurl *entities.ShURL) error {
 	return s.repo.Update(ctx, shurl)
 }
 

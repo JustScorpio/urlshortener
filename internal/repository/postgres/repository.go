@@ -5,7 +5,7 @@ import (
 	_ "embed"
 	"fmt"
 
-	"github.com/JustScorpio/urlshortener/internal/models"
+	"github.com/JustScorpio/urlshortener/internal/models/entities"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -74,6 +74,7 @@ func NewPostgresShURLRepository(connStr string) (*PostgresShURLRepository, error
 		CREATE TABLE IF NOT EXISTS shurls (
 			token VARCHAR(8) PRIMARY KEY,
 			longurl TEXT NOT NULL UNIQUE
+			createdby TEXT NOT NULL
 		)
 	`)
 	if err != nil {
@@ -83,8 +84,8 @@ func NewPostgresShURLRepository(connStr string) (*PostgresShURLRepository, error
 	return &PostgresShURLRepository{db: db}, nil
 }
 
-func (r *PostgresShURLRepository) GetAll(ctx context.Context) ([]models.ShURL, error) {
-	rows, err := r.db.Query(ctx, "SELECT token, longurl FROM shurls")
+func (r *PostgresShURLRepository) GetAll(ctx context.Context) ([]entities.ShURL, error) {
+	rows, err := r.db.Query(ctx, "SELECT token, longurl, createdby FROM shurls")
 	if err != nil {
 		return nil, err
 	}
@@ -95,15 +96,15 @@ func (r *PostgresShURLRepository) GetAll(ctx context.Context) ([]models.ShURL, e
 		return nil, err
 	}
 
-	var shurls []models.ShURL
+	var shurls []entities.ShURL
 	for rows.Next() {
 		// Проверяем не отменен ли контекст
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
 
-		var shurl models.ShURL
-		err := rows.Scan(&shurl.Token, &shurl.LongURL)
+		var shurl entities.ShURL
+		err := rows.Scan(&shurl.Token, &shurl.LongURL, &shurl.CreatedBy)
 		if err != nil {
 			return nil, err
 		}
@@ -113,25 +114,25 @@ func (r *PostgresShURLRepository) GetAll(ctx context.Context) ([]models.ShURL, e
 	return shurls, nil
 }
 
-func (r *PostgresShURLRepository) Get(ctx context.Context, id string) (*models.ShURL, error) {
-	var shurl models.ShURL
-	err := r.db.QueryRow(ctx, "SELECT token, longurl FROM shurls WHERE token = $1", id).Scan(&shurl.Token, &shurl.LongURL)
+func (r *PostgresShURLRepository) Get(ctx context.Context, id string) (*entities.ShURL, error) {
+	var shurl entities.ShURL
+	err := r.db.QueryRow(ctx, "SELECT token, longurl, createdby FROM shurls WHERE token = $1", id).Scan(&shurl.Token, &shurl.LongURL, &shurl.CreatedBy)
 	if err != nil {
 		return nil, err
 	}
 	return &shurl, nil
 }
 
-func (r *PostgresShURLRepository) Create(ctx context.Context, shurl *models.ShURL) error {
-	_, err := r.db.Exec(ctx, "INSERT INTO shurls (token, longurl) VALUES ($1, $2)", shurl.Token, shurl.LongURL)
+func (r *PostgresShURLRepository) Create(ctx context.Context, shurl *entities.ShURL) error {
+	_, err := r.db.Exec(ctx, "INSERT INTO shurls (token, longurl, createdBy) VALUES ($1, $2, $3)", shurl.Token, shurl.LongURL, shurl.CreatedBy)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (r *PostgresShURLRepository) Update(ctx context.Context, shurl *models.ShURL) error {
-	_, err := r.db.Exec(ctx, "UPDATE shurls SET longurl = $2 WHERE token = $1", shurl.Token, shurl.LongURL)
+func (r *PostgresShURLRepository) Update(ctx context.Context, shurl *entities.ShURL) error {
+	_, err := r.db.Exec(ctx, "UPDATE shurls SET longurl = $2, createdby = $3 WHERE token = $1", shurl.Token, shurl.LongURL, shurl.CreatedBy)
 	return err
 }
 

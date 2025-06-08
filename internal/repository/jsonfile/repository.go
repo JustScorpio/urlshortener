@@ -8,7 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/JustScorpio/urlshortener/internal/models"
+	"github.com/JustScorpio/urlshortener/internal/models/entities"
 	_ "modernc.org/sqlite"
 )
 
@@ -30,7 +30,7 @@ func NewJSONFileShURLRepository(filePath string) (*JSONFileShURLRepository, erro
 
 	// Создаем пустой файл БД, если ее нет
 	if _, err := os.Stat(filePath); errors.Is(err, os.ErrNotExist) {
-		emptyJSONCollection, _ := json.Marshal([]models.ShURL{})
+		emptyJSONCollection, _ := json.Marshal([]entities.ShURL{})
 		err = os.WriteFile(filePath, emptyJSONCollection, 0644)
 
 		if err != nil {
@@ -41,7 +41,7 @@ func NewJSONFileShURLRepository(filePath string) (*JSONFileShURLRepository, erro
 	return &JSONFileShURLRepository{filePath: filePath}, nil
 }
 
-func (r *JSONFileShURLRepository) GetAll(ctx context.Context) ([]models.ShURL, error) {
+func (r *JSONFileShURLRepository) GetAll(ctx context.Context) ([]entities.ShURL, error) {
 
 	var file, err = os.ReadFile(r.filePath)
 	if err != nil {
@@ -53,7 +53,7 @@ func (r *JSONFileShURLRepository) GetAll(ctx context.Context) ([]models.ShURL, e
 		return nil, err
 	}
 
-	var shurls []models.ShURL
+	var shurls []entities.ShURL
 	if err := json.Unmarshal(file, &shurls); err != nil {
 		return nil, fmt.Errorf("ошибка парсинга JSON: %w", err)
 	}
@@ -61,14 +61,14 @@ func (r *JSONFileShURLRepository) GetAll(ctx context.Context) ([]models.ShURL, e
 	return shurls, nil
 }
 
-func (r *JSONFileShURLRepository) Get(ctx context.Context, id string) (*models.ShURL, error) {
+func (r *JSONFileShURLRepository) Get(ctx context.Context, id string) (*entities.ShURL, error) {
 	shurls, err := r.GetAll(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	for _, shurl := range shurls {
-		// Проверяем, не отменен ли контекст перед началом работы
+		// Проверяем, не отменен ли контекст
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
@@ -81,7 +81,7 @@ func (r *JSONFileShURLRepository) Get(ctx context.Context, id string) (*models.S
 	return nil, errNotFound
 }
 
-func (r *JSONFileShURLRepository) Create(ctx context.Context, shurl *models.ShURL) error {
+func (r *JSONFileShURLRepository) Create(ctx context.Context, shurl *entities.ShURL) error {
 	existedShurls, err := r.GetAll(ctx)
 	if err != nil {
 		return err
@@ -108,14 +108,14 @@ func (r *JSONFileShURLRepository) Create(ctx context.Context, shurl *models.ShUR
 	return os.WriteFile(r.filePath, jsonShurls, 0644)
 }
 
-func (r *JSONFileShURLRepository) Update(ctx context.Context, shurl *models.ShURL) error {
+func (r *JSONFileShURLRepository) Update(ctx context.Context, shurl *entities.ShURL) error {
 	existedShurls, err := r.GetAll(ctx)
 	if err != nil {
 		return err
 	}
 
 	for i, existedShurl := range existedShurls {
-		// Проверяем, не отменен ли контекст перед началом работы
+		// Проверяем, не отменен ли контекст
 		if err := ctx.Err(); err != nil {
 			return err
 		}
@@ -135,7 +135,7 @@ func (r *JSONFileShURLRepository) Update(ctx context.Context, shurl *models.ShUR
 	return errNotFound
 }
 
-func (r *JSONFileShURLRepository) Delete(ctx context.Context, id string) error {
+func (r *JSONFileShURLRepository) Delete(ctx context.Context, token string) error {
 	existedShurls, err := r.GetAll(ctx)
 	if err != nil {
 		return err
@@ -147,7 +147,7 @@ func (r *JSONFileShURLRepository) Delete(ctx context.Context, id string) error {
 			return err
 		}
 
-		if existedShurl.Token == id {
+		if existedShurl.Token == token {
 			existedShurls[i] = existedShurls[len(existedShurls)-1]
 
 			//Возвращаем slice без последнего элемента, где удаляемый элемент заменён последним

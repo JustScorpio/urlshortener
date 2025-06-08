@@ -9,7 +9,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/JustScorpio/urlshortener/internal/models"
+	"github.com/JustScorpio/urlshortener/internal/models/entities"
 	_ "modernc.org/sqlite"
 )
 
@@ -58,6 +58,7 @@ func NewSQLiteShURLRepository() (*SQLiteShURLRepository, error) {
 		CREATE TABLE IF NOT EXISTS shurls (
 			token TEXT PRIMARY KEY,
 			longurl TEXT NOT NULL
+			createdby TEXT NOT NULL
 		);
 	`)
 	if err != nil {
@@ -67,8 +68,8 @@ func NewSQLiteShURLRepository() (*SQLiteShURLRepository, error) {
 	return &SQLiteShURLRepository{db: db}, nil
 }
 
-func (r *SQLiteShURLRepository) GetAll(ctx context.Context) ([]models.ShURL, error) {
-	rows, err := r.db.QueryContext(ctx, "SELECT token, longurl FROM shurls")
+func (r *SQLiteShURLRepository) GetAll(ctx context.Context) ([]entities.ShURL, error) {
+	rows, err := r.db.QueryContext(ctx, "SELECT token, longurl, createdby FROM shurls")
 	if err != nil {
 		return nil, err
 	}
@@ -78,15 +79,15 @@ func (r *SQLiteShURLRepository) GetAll(ctx context.Context) ([]models.ShURL, err
 
 	defer rows.Close()
 
-	var shurls []models.ShURL
+	var shurls []entities.ShURL
 	for rows.Next() {
 		// Проверяем не отменен ли контекст
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
 
-		var shurl models.ShURL
-		err := rows.Scan(&shurl.Token, &shurl.LongURL)
+		var shurl entities.ShURL
+		err := rows.Scan(&shurl.Token, &shurl.LongURL, &shurl.CreatedBy)
 		if err != nil {
 			return nil, err
 		}
@@ -96,13 +97,13 @@ func (r *SQLiteShURLRepository) GetAll(ctx context.Context) ([]models.ShURL, err
 	return shurls, nil
 }
 
-func (r *SQLiteShURLRepository) Get(ctx context.Context, id string) (*models.ShURL, error) {
-	var shurl models.ShURL
+func (r *SQLiteShURLRepository) Get(ctx context.Context, id string) (*entities.ShURL, error) {
+	var shurl entities.ShURL
 	err := r.db.QueryRowContext(
 		ctx,
-		"SELECT token, longurl FROM shurls WHERE token = ?",
+		"SELECT token, longurl, createdby FROM shurls WHERE token = ?",
 		id,
-	).Scan(&shurl.Token, &shurl.LongURL)
+	).Scan(&shurl.Token, &shurl.LongURL, &shurl.CreatedBy)
 
 	if err != nil {
 		return nil, err
@@ -110,21 +111,23 @@ func (r *SQLiteShURLRepository) Get(ctx context.Context, id string) (*models.ShU
 	return &shurl, nil
 }
 
-func (r *SQLiteShURLRepository) Create(ctx context.Context, shurl *models.ShURL) error {
+func (r *SQLiteShURLRepository) Create(ctx context.Context, shurl *entities.ShURL) error {
 	_, err := r.db.ExecContext(
 		ctx,
-		"INSERT INTO shurls (token, longurl) VALUES (?, ?)",
+		"INSERT INTO shurls (token, longurl, createdby) VALUES (?, ?, ?)",
 		shurl.Token,
 		shurl.LongURL,
+		shurl.CreatedBy,
 	)
 	return err
 }
 
-func (r *SQLiteShURLRepository) Update(ctx context.Context, shurl *models.ShURL) error {
+func (r *SQLiteShURLRepository) Update(ctx context.Context, shurl *entities.ShURL) error {
 	_, err := r.db.ExecContext(
 		ctx,
-		"UPDATE shurls SET longurl = ? WHERE token = ?",
+		"UPDATE shurls SET longurl = ?, createdby = ? WHERE token = ?",
 		shurl.LongURL,
+		shurl.CreatedBy,
 		shurl.Token,
 	)
 	return err
@@ -135,12 +138,11 @@ func (r *SQLiteShURLRepository) Delete(ctx context.Context, id string) error {
 	return err
 }
 
-func (r *SQLiteShURLRepository) CloseConnection(ctx context.Context) {
-	//TODO: задействовать context при хакрытии соединения с БД (если это уместно при закрытии соединения)
+func (r *SQLiteShURLRepository) CloseConnection() {
 	r.db.Close()
 }
 
-func (r *SQLiteShURLRepository) PingDB(ctx context.Context) bool {
-	err := r.db.PingContext(ctx)
+func (r *SQLiteShURLRepository) PingDB() bool {
+	err := r.db.Ping()
 	return err == nil
 }
