@@ -90,6 +90,7 @@ func run() error {
 		r.Use(logger.LoggingMiddleware(zapLogger))
 		r.Use(gzipencoder.GZIPEncodingMiddleware())
 		r.Get("/ping", pingFunc)
+		// r.Get("/api/user/urls", shURLHandler.GetAllByUserID)
 		r.Get("/{token}", shURLHandler.GetFullURL)
 		r.Post("/api/shorten", shURLHandler.ShortenURL)
 		r.Post("/api/shorten/batch", shURLHandler.ShortenURLsBatch)
