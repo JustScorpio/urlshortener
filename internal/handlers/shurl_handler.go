@@ -228,7 +228,7 @@ func (h *ShURLHandler) GetShURLsByUserID(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	//Не спрашиваем - не предусмотрено автотестами
+	//Не спрашиваем - не предусмотрено автотестами.
 	//Только Accept: JSON
 	// contentType := r.Header.Get("Accept")
 	// if contentType != "application/json" {
