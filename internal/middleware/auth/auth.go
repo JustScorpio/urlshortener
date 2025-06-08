@@ -52,25 +52,31 @@ func AuthMiddleware() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
+			var userID string
+
+			needCreateCookie := false
 			cookie, err := r.Cookie(jwtCookieName)
 			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				return
+				needCreateCookie = true
+			} else {
+				// создаём экземпляр структуры с утверждениями
+				claims := &Claims{}
+				// парсим из строки токена tokenString в структуру claims
+				token, err := jwt.ParseWithClaims(cookie.Value, claims, func(t *jwt.Token) (interface{}, error) {
+					return []byte(secretKey), nil
+				})
+
+				if err != nil || !token.Valid {
+					needCreateCookie = true
+				} else {
+					userID = claims.UserID
+				}
 			}
 
-			// создаём экземпляр структуры с утверждениями
-			claims := &Claims{}
-			// парсим из строки токена tokenString в структуру claims
-			token, err := jwt.ParseWithClaims(cookie.Value, claims, func(t *jwt.Token) (interface{}, error) {
-				return []byte(secretKey), nil
-			})
-
-			var userID string
-			if err != nil || !token.Valid {
-
+			//Если некорректный токен - выдаём новый
+			if needCreateCookie {
 				userID = uuid.NewString()
 
-				//Некорректный токен - выдаём новый
 				newToken, err := newJWTString(userID)
 				if err != nil {
 					w.WriteHeader(http.StatusInternalServerError)
@@ -87,8 +93,6 @@ func AuthMiddleware() func(http.Handler) http.Handler {
 				}
 
 				http.SetCookie(w, newCookie)
-			} else {
-				userID = claims.UserID
 			}
 
 			// Добавляем UUID в контекст запроса

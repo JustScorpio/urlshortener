@@ -261,15 +261,15 @@ func (h *ShURLHandler) GetShURLsByUserID(w http.ResponseWriter, r *http.Request)
 	}
 
 	type respItem struct {
-		ShortUrl    string `json:"short_url"`
-		OriginalUrl string `json:"original_url"`
+		ShortURL    string `json:"short_url"`
+		OriginalURL string `json:"original_url"`
 	}
 	var respData []respItem
 
 	for _, shURL := range shURLs {
 		respData = append(respData, respItem{
-			ShortUrl:    "http://" + h.shURLBaseAddr + "/" + shURL.Token,
-			OriginalUrl: shURL.LongURL,
+			ShortURL:    "http://" + h.shURLBaseAddr + "/" + shURL.Token,
+			OriginalURL: shURL.LongURL,
 		})
 	}
 
