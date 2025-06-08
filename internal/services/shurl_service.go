@@ -39,6 +39,11 @@ func (s *ShURLService) Create(ctx context.Context, newURL dtos.NewShURL) (*entit
 	longURL := newURL.LongURL
 
 	for _, existedURL := range existedURLs {
+		// Проверяем не отменен ли контекст
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+
 		if existedURL.LongURL == longURL {
 			return &existedURL, customerrors.NewAlreadyExistsError(fmt.Errorf("shurl for %v already exists", longURL))
 		}
@@ -67,4 +72,25 @@ func (s *ShURLService) Update(ctx context.Context, shurl *entities.ShURL) error 
 
 func (s *ShURLService) Delete(ctx context.Context, token string) error {
 	return s.repo.Delete(ctx, token)
+}
+
+func (s *ShURLService) GetAllShURLsByUserID(ctx context.Context, userID string) ([]entities.ShURL, error) {
+	allShURLs, err := s.repo.GetAll(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var result []entities.ShURL
+	for _, shURL := range allShURLs {
+		// Проверяем не отменен ли контекст
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+
+		if shURL.CreatedBy == userID {
+			result = append(result, shURL)
+		}
+	}
+
+	return result, nil
 }

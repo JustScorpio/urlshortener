@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/JustScorpio/urlshortener/internal/handlers"
+	"github.com/JustScorpio/urlshortener/internal/middleware/auth"
 	"github.com/JustScorpio/urlshortener/internal/middleware/gzipencoder"
 	"github.com/JustScorpio/urlshortener/internal/middleware/logger"
 	"github.com/JustScorpio/urlshortener/internal/models/entities"
@@ -87,10 +88,11 @@ func run() error {
 	// Сравниваем нормализованные адреса. Если адрес один - запускаем то и то на одном порту
 	if flagShortenerRouterAddr == flagRedirectRouterAddr {
 		r := chi.NewRouter()
+		r.Use(auth.AuthMiddleware())
 		r.Use(logger.LoggingMiddleware(zapLogger))
 		r.Use(gzipencoder.GZIPEncodingMiddleware())
 		r.Get("/ping", pingFunc)
-		// r.Get("/api/user/urls", shURLHandler.GetAllByUserID)
+		r.Get("/api/{user}/urls", shURLHandler.GetShURLsByUserID)
 		r.Get("/{token}", shURLHandler.GetFullURL)
 		r.Post("/api/shorten", shURLHandler.ShortenURL)
 		r.Post("/api/shorten/batch", shURLHandler.ShortenURLsBatch)
@@ -101,9 +103,11 @@ func run() error {
 
 	// Если разные - разные сервера для разных хэндлеров в разных горутинах
 	redirectRouter := chi.NewRouter()
+	redirectRouter.Use(auth.AuthMiddleware()) //Нужно только при обращении к /api/{user}/urls
 	redirectRouter.Use(logger.LoggingMiddleware(zapLogger))
 	redirectRouter.Use(gzipencoder.GZIPEncodingMiddleware())
 	redirectRouter.Get("/ping", pingFunc) //Дублируется в обоих роутерах
+	redirectRouter.Get("/api/{user}/urls", shURLHandler.GetShURLsByUserID)
 	redirectRouter.Get("/{token}", shURLHandler.GetFullURL)
 
 	shortenerRouter := chi.NewRouter()

@@ -11,6 +11,7 @@ import (
 	"github.com/JustScorpio/urlshortener/internal/customerrors"
 	"github.com/JustScorpio/urlshortener/internal/models/dtos"
 	"github.com/JustScorpio/urlshortener/internal/services"
+	"github.com/go-chi/chi"
 )
 
 type ShURLHandler struct {
@@ -216,5 +217,68 @@ func (h *ShURLHandler) ShortenURLsBatch(w http.ResponseWriter, r *http.Request) 
 
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
+	w.Write(jsonData)
+}
+
+// Получить полный адрес
+func (h *ShURLHandler) GetShURLsByUserID(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		// разрешаем только Get-запросы
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	//Только Accept: JSON
+	contentType := r.Header.Get("Accept")
+	if contentType != "application/json" {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	reqUser := chi.URLParam(r, "user")
+
+	if reqUser == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	curUser := customcontext.GetUserID(r.Context())
+	if reqUser != curUser {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	// Получение сущности из сервиса
+	shURLs, err := h.service.GetAllShURLsByUserID(r.Context(), reqUser)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if len(shURLs) == 0 {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	type respItem struct {
+		ShortUrl    string `json:"short_url"`
+		OriginalUrl string `json:"original_url"`
+	}
+	var respData []respItem
+
+	for _, shURL := range shURLs {
+		respData = append(respData, respItem{
+			ShortUrl:    "http://" + h.shURLBaseAddr + "/" + shURL.Token,
+			OriginalUrl: shURL.LongURL,
+		})
+	}
+
+	jsonData, err := json.Marshal(respData)
+	if err != nil {
+		return
+	}
+
+	w.Header().Add("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 	w.Write(jsonData)
 }
