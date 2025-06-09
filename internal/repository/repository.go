@@ -1,16 +1,19 @@
 package repository
 
 import (
-	"github.com/JustScorpio/urlshortener/internal/models"
+	"context"
+
+	"github.com/JustScorpio/urlshortener/internal/models/entities"
 )
 
-// Не видел нигде рекомендаций по неймингу интерфейсов, но считаю уместным отличать их от структур
-type IRepository[T models.Entity] interface {
-	GetAll() ([]T, error)
-	Get(id string) (*T, error)
-	Create(entity *T) error
-	Update(entity *T) error
-	Delete(id string) error
+// Интерфейс реализующий паттерн "репозиторий"
+type IRepository[T entities.Entity] interface {
+	GetAll(ctx context.Context) ([]T, error)
+	Get(ctx context.Context, id string) (*T, error)
+	Create(ctx context.Context, entity *T) error
+	Update(ctx context.Context, entity *T) error
+	Delete(ctx context.Context, id string) error
 
 	CloseConnection()
+	PingDB() bool
 }
