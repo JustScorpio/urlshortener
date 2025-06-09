@@ -228,11 +228,11 @@ func (h *ShURLHandler) GetShURLsByUserID(w http.ResponseWriter, r *http.Request)
 	}
 
 	//Только Accept: JSON
-	contentType := r.Header.Get("Accept")
-	if contentType != "application/json" {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
+	// contentType := r.Header.Get("Accept")
+	// if contentType != "application/json" {
+	// 	w.WriteHeader(http.StatusBadRequest)
+	// 	return
+	// }
 
 	userID := customcontext.GetUserID(r.Context())
 	if userID == "" {
