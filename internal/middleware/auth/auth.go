@@ -29,7 +29,7 @@ func newJWTString(userID string) (string, error) {
 	// создаём новый токен с алгоритмом подписи HS256 и утверждениями — Claims
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
-			// когда создан токен
+			// Срок окончания времени жизни токена
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(tokenLifeTime)),
 		},
 		// собственное утверждение
@@ -37,7 +37,7 @@ func newJWTString(userID string) (string, error) {
 	})
 
 	// создаём строку токена
-	tokenString, err := token.SignedString([]byte(jwtCookieName))
+	tokenString, err := token.SignedString([]byte(secretKey))
 	if err != nil {
 		return "", err
 	}
@@ -57,6 +57,7 @@ func AuthMiddleware() func(http.Handler) http.Handler {
 			needCreateCookie := false
 			cookie, err := r.Cookie(jwtCookieName)
 			if err != nil {
+				//Нужно создать новую
 				needCreateCookie = true
 			} else {
 				// создаём экземпляр структуры с утверждениями
@@ -87,7 +88,7 @@ func AuthMiddleware() func(http.Handler) http.Handler {
 				newCookie := &http.Cookie{
 					Name:     jwtCookieName,
 					Value:    newToken,
-					Expires:  time.Now().Add(tokenLifeTime),
+					Expires:  time.Now().Add(tokenLifeTime), //Срок жизни куки - такой же как и у токена
 					HttpOnly: true,
 					SameSite: http.SameSiteLaxMode,
 				}

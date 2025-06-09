@@ -44,6 +44,7 @@ func (s *ShURLService) Create(ctx context.Context, newURL dtos.NewShURL) (*entit
 			return nil, err
 		}
 
+		//TODO: если разные пользователи укоротили один урл, дубль должен писаться? По идее да
 		if existedURL.LongURL == longURL {
 			return &existedURL, customerrors.NewAlreadyExistsError(fmt.Errorf("shurl for %v already exists", longURL))
 		}
