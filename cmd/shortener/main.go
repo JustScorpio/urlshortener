@@ -107,7 +107,7 @@ func run() error {
 	redirectRouter.Use(logger.LoggingMiddleware(zapLogger))
 	redirectRouter.Use(gzipencoder.GZIPEncodingMiddleware())
 	redirectRouter.Get("/ping", pingFunc) //Дублируется в обоих роутерах
-	redirectRouter.Get("/api/{user}/urls", shURLHandler.GetShURLsByUserID)
+	redirectRouter.Get("/api/user/urls", shURLHandler.GetShURLsByUserID)
 	redirectRouter.Get("/{token}", shURLHandler.GetFullURL)
 
 	shortenerRouter := chi.NewRouter()

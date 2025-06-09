@@ -11,7 +11,6 @@ import (
 	"github.com/JustScorpio/urlshortener/internal/customerrors"
 	"github.com/JustScorpio/urlshortener/internal/models/dtos"
 	"github.com/JustScorpio/urlshortener/internal/services"
-	"github.com/go-chi/chi"
 )
 
 type ShURLHandler struct {
@@ -228,29 +227,22 @@ func (h *ShURLHandler) GetShURLsByUserID(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	//Не спрашиваем - не предусмотрено автотестами.
 	//Только Accept: JSON
-	// contentType := r.Header.Get("Accept")
-	// if contentType != "application/json" {
-	// 	w.WriteHeader(http.StatusBadRequest)
-	// 	return
-	// }
-
-	reqUser := chi.URLParam(r, "user")
-
-	if reqUser == "" {
+	contentType := r.Header.Get("Accept")
+	if contentType != "application/json" {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	curUser := customcontext.GetUserID(r.Context())
-	if reqUser != curUser {
+	userID := customcontext.GetUserID(r.Context())
+	if userID == "" {
+		// UserID в куке пуст
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
 	// Получение сущности из сервиса
-	shURLs, err := h.service.GetAllShURLsByUserID(r.Context(), reqUser)
+	shURLs, err := h.service.GetAllShURLsByUserID(r.Context(), userID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
