@@ -22,8 +22,8 @@ type JSONFileShURLRepository struct {
 }
 
 type ShURLEntry struct {
-	shURL   entities.ShURL
-	deleted bool
+	ShURL   entities.ShURL
+	Deleted bool
 }
 
 func NewJSONFileShURLRepository(filePath string) (*JSONFileShURLRepository, error) {
@@ -78,8 +78,8 @@ func (r *JSONFileShURLRepository) GetAll(ctx context.Context) ([]entities.ShURL,
 
 	var shurls []entities.ShURL
 	for _, entry := range entries {
-		if !entry.deleted {
-			shurls = append(shurls, entry.shURL)
+		if !entry.Deleted {
+			shurls = append(shurls, entry.ShURL)
 		}
 	}
 
@@ -98,12 +98,12 @@ func (r *JSONFileShURLRepository) Get(ctx context.Context, id string) (*entities
 			return nil, err
 		}
 
-		if entry.shURL.Token == id {
-			if entry.deleted {
+		if entry.ShURL.Token == id {
+			if entry.Deleted {
 				return nil, errGone
 			}
 
-			return &entry.shURL, nil
+			return &entry.ShURL, nil
 		}
 	}
 
@@ -123,7 +123,7 @@ func (r *JSONFileShURLRepository) Create(ctx context.Context, shurl *entities.Sh
 			return err
 		}
 
-		if entry.shURL.Token == shurl.Token && !entry.deleted {
+		if entry.ShURL.Token == shurl.Token && !entry.Deleted {
 			return errAlreadyExists
 		}
 	}
@@ -151,8 +151,8 @@ func (r *JSONFileShURLRepository) Update(ctx context.Context, shurl *entities.Sh
 			return err
 		}
 
-		if entry.shURL.Token == shurl.Token && !entry.deleted {
-			entries[i].shURL = *shurl
+		if entry.ShURL.Token == shurl.Token && !entry.Deleted {
+			entries[i].ShURL = *shurl
 
 			jsonShurls, err := json.MarshalIndent(entries, "", "   ")
 			if err != nil {
@@ -179,8 +179,8 @@ func (r *JSONFileShURLRepository) Delete(ctx context.Context, token string) erro
 			return err
 		}
 
-		if entry.shURL.Token == token {
-			entries[i].deleted = true
+		if entry.ShURL.Token == token {
+			entries[i].Deleted = true
 
 			jsonShurls, err := json.MarshalIndent(entries, "", "   ")
 			if err != nil {
