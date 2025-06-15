@@ -78,7 +78,7 @@ func (r *JSONFileShURLRepository) GetAll(ctx context.Context) ([]entities.ShURL,
 
 	var shurls []entities.ShURL
 	for _, entry := range entries {
-		if entry.deleted == false {
+		if !entry.deleted {
 			shurls = append(shurls, entry.shURL)
 		}
 	}
@@ -123,7 +123,7 @@ func (r *JSONFileShURLRepository) Create(ctx context.Context, shurl *entities.Sh
 			return err
 		}
 
-		if entry.shURL.Token == shurl.Token && entry.deleted == false {
+		if entry.shURL.Token == shurl.Token && !entry.deleted {
 			return errAlreadyExists
 		}
 	}
@@ -151,7 +151,7 @@ func (r *JSONFileShURLRepository) Update(ctx context.Context, shurl *entities.Sh
 			return err
 		}
 
-		if entry.shURL.Token == shurl.Token && entry.deleted == false {
+		if entry.shURL.Token == shurl.Token && !entry.deleted {
 			entries[i].shURL = *shurl
 
 			jsonShurls, err := json.MarshalIndent(entries, "", "   ")
