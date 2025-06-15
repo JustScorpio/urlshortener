@@ -8,15 +8,22 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/JustScorpio/urlshortener/internal/customerrors"
 	"github.com/JustScorpio/urlshortener/internal/models/entities"
 	_ "modernc.org/sqlite"
 )
 
 var errNotFound = errors.New("not found")
 var errAlreadyExists = errors.New("already exists")
+var errGone = customerrors.NewGoneError(errors.New("shurl has been deleted"))
 
 type JSONFileShURLRepository struct {
 	filePath string
+}
+
+type ShURLEntry struct {
+	shURL   entities.ShURL
+	deleted bool
 }
 
 func NewJSONFileShURLRepository(filePath string) (*JSONFileShURLRepository, error) {
@@ -41,7 +48,8 @@ func NewJSONFileShURLRepository(filePath string) (*JSONFileShURLRepository, erro
 	return &JSONFileShURLRepository{filePath: filePath}, nil
 }
 
-func (r *JSONFileShURLRepository) GetAll(ctx context.Context) ([]entities.ShURL, error) {
+// В отличие от GetAll возвращает []ShURLEntry которые содержат метку удаления deleted
+func (r *JSONFileShURLRepository) GetAllEntries(ctx context.Context) ([]ShURLEntry, error) {
 
 	var file, err = os.ReadFile(r.filePath)
 	if err != nil {
@@ -53,28 +61,49 @@ func (r *JSONFileShURLRepository) GetAll(ctx context.Context) ([]entities.ShURL,
 		return nil, err
 	}
 
-	var shurls []entities.ShURL
-	if err := json.Unmarshal(file, &shurls); err != nil {
+	var entries []ShURLEntry
+	if err := json.Unmarshal(file, &entries); err != nil {
 		return nil, fmt.Errorf("ошибка парсинга JSON: %w", err)
+	}
+
+	return entries, nil
+}
+
+// Возвращает ShURL'ы, у которых deleted = false
+func (r *JSONFileShURLRepository) GetAll(ctx context.Context) ([]entities.ShURL, error) {
+	var entries, err = r.GetAllEntries(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var shurls []entities.ShURL
+	for _, entry := range entries {
+		if entry.deleted == false {
+			shurls = append(shurls, entry.shURL)
+		}
 	}
 
 	return shurls, nil
 }
 
 func (r *JSONFileShURLRepository) Get(ctx context.Context, id string) (*entities.ShURL, error) {
-	shurls, err := r.GetAll(ctx)
+	entries, err := r.GetAllEntries(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, shurl := range shurls {
+	for _, entry := range entries {
 		// Проверяем, не отменен ли контекст
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
 
-		if shurl.Token == id {
-			return &shurl, nil
+		if entry.shURL.Token == id {
+			if entry.deleted {
+				return nil, errGone
+			}
+
+			return &entry.shURL, nil
 		}
 	}
 
@@ -82,25 +111,26 @@ func (r *JSONFileShURLRepository) Get(ctx context.Context, id string) (*entities
 }
 
 func (r *JSONFileShURLRepository) Create(ctx context.Context, shurl *entities.ShURL) error {
-	existedShurls, err := r.GetAll(ctx)
+	//При работе с json-файлом перезаписывается всё содержимое, поэтому работаем с ShURLEntry чтобы не потерять удалённые записи
+	entries, err := r.GetAllEntries(ctx)
 	if err != nil {
 		return err
 	}
 
-	for _, existedShurl := range existedShurls {
+	for _, entry := range entries {
 		// Проверяем, не отменен ли контекст перед началом работы
 		if err := ctx.Err(); err != nil {
 			return err
 		}
 
-		if existedShurl.Token == shurl.Token {
+		if entry.shURL.Token == shurl.Token && entry.deleted == false {
 			return errAlreadyExists
 		}
 	}
 
-	existedShurls = append(existedShurls, *shurl)
+	entries = append(entries, ShURLEntry{*shurl, false})
 
-	jsonShurls, err := json.MarshalIndent(existedShurls, "", "   ")
+	jsonShurls, err := json.MarshalIndent(entries, "", "   ")
 	if err != nil {
 		return err
 	}
@@ -109,21 +139,22 @@ func (r *JSONFileShURLRepository) Create(ctx context.Context, shurl *entities.Sh
 }
 
 func (r *JSONFileShURLRepository) Update(ctx context.Context, shurl *entities.ShURL) error {
-	existedShurls, err := r.GetAll(ctx)
+	//При работе с json-файлом перезаписывается всё содержимое, поэтому работаем с ShURLEntry чтобы не потерять удалённые записи
+	entries, err := r.GetAllEntries(ctx)
 	if err != nil {
 		return err
 	}
 
-	for i, existedShurl := range existedShurls {
+	for i, entry := range entries {
 		// Проверяем, не отменен ли контекст
 		if err := ctx.Err(); err != nil {
 			return err
 		}
 
-		if existedShurl.Token == shurl.Token {
-			existedShurls[i] = *shurl
+		if entry.shURL.Token == shurl.Token && entry.deleted == false {
+			entries[i].shURL = *shurl
 
-			jsonShurls, err := json.MarshalIndent(existedShurls, "", "   ")
+			jsonShurls, err := json.MarshalIndent(entries, "", "   ")
 			if err != nil {
 				return err
 			}
@@ -136,22 +167,22 @@ func (r *JSONFileShURLRepository) Update(ctx context.Context, shurl *entities.Sh
 }
 
 func (r *JSONFileShURLRepository) Delete(ctx context.Context, token string) error {
-	existedShurls, err := r.GetAll(ctx)
+	//При работе с json-файлом перезаписывается всё содержимое, поэтому работаем с ShURLEntry чтобы не потерять удалённые записи
+	entries, err := r.GetAllEntries(ctx)
 	if err != nil {
 		return err
 	}
 
-	for i, existedShurl := range existedShurls {
+	for i, entry := range entries {
 		// Проверяем, не отменен ли контекст перед началом работы
 		if err := ctx.Err(); err != nil {
 			return err
 		}
 
-		if existedShurl.Token == token {
-			existedShurls[i] = existedShurls[len(existedShurls)-1]
+		if entry.shURL.Token == token {
+			entries[i].deleted = true
 
-			//Возвращаем slice без последнего элемента, где удаляемый элемент заменён последним
-			jsonShurls, err := json.MarshalIndent(existedShurls[:len(existedShurls)-1], "", "   ")
+			jsonShurls, err := json.MarshalIndent(entries, "", "   ")
 			if err != nil {
 				return err
 			}

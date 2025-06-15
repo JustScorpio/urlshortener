@@ -5,10 +5,12 @@ import (
 	"database/sql"
 	_ "embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 
+	"github.com/JustScorpio/urlshortener/internal/customerrors"
 	"github.com/JustScorpio/urlshortener/internal/models/entities"
 	_ "modernc.org/sqlite"
 )
@@ -23,6 +25,8 @@ type DBConfiguration struct {
 type SQLiteShURLRepository struct {
 	db *sql.DB
 }
+
+var errGone = customerrors.NewGoneError(errors.New("shurl has been deleted"))
 
 func NewSQLiteShURLRepository() (*SQLiteShURLRepository, error) {
 	//TODO: задействовать context при создании, подключении БД
@@ -58,7 +62,8 @@ func NewSQLiteShURLRepository() (*SQLiteShURLRepository, error) {
 		CREATE TABLE IF NOT EXISTS shurls (
 			token TEXT PRIMARY KEY,
 			longurl TEXT NOT NULL,
-			createdby TEXT NOT NULL
+			createdby TEXT NOT NULL,
+			deleted BOOLEAN DEFAULT FALSE
 		);
 	`)
 	if err != nil {
@@ -69,7 +74,7 @@ func NewSQLiteShURLRepository() (*SQLiteShURLRepository, error) {
 }
 
 func (r *SQLiteShURLRepository) GetAll(ctx context.Context) ([]entities.ShURL, error) {
-	rows, err := r.db.QueryContext(ctx, "SELECT token, longurl, createdby FROM shurls")
+	rows, err := r.db.QueryContext(ctx, "SELECT token, longurl, createdby FROM shurls WHERE deleted = FALSE")
 	if err != nil {
 		return nil, err
 	}
@@ -99,11 +104,16 @@ func (r *SQLiteShURLRepository) GetAll(ctx context.Context) ([]entities.ShURL, e
 
 func (r *SQLiteShURLRepository) Get(ctx context.Context, id string) (*entities.ShURL, error) {
 	var shurl entities.ShURL
+	var deleted bool
 	err := r.db.QueryRowContext(
 		ctx,
-		"SELECT token, longurl, createdby FROM shurls WHERE token = ?",
+		"SELECT token, longurl, createdby, deleted FROM shurls WHERE token = ?",
 		id,
-	).Scan(&shurl.Token, &shurl.LongURL, &shurl.CreatedBy)
+	).Scan(&shurl.Token, &shurl.LongURL, &shurl.CreatedBy, &deleted)
+
+	if deleted {
+		return nil, errGone
+	}
 
 	if err != nil {
 		return nil, err
@@ -134,7 +144,7 @@ func (r *SQLiteShURLRepository) Update(ctx context.Context, shurl *entities.ShUR
 }
 
 func (r *SQLiteShURLRepository) Delete(ctx context.Context, id string) error {
-	_, err := r.db.ExecContext(ctx, "DELETE FROM shurls WHERE token = ?", id)
+	_, err := r.db.ExecContext(ctx, "UPDATE shurls SET deleted = TRUE WHERE token = ?", id)
 	return err
 }
 

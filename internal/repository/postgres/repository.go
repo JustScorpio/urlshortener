@@ -3,8 +3,10 @@ package postgres
 import (
 	"context"
 	_ "embed"
+	"errors"
 	"fmt"
 
+	"github.com/JustScorpio/urlshortener/internal/customerrors"
 	"github.com/JustScorpio/urlshortener/internal/models/entities"
 	"github.com/jackc/pgx/v5"
 )
@@ -24,6 +26,8 @@ type DBConfiguration struct {
 type PostgresShURLRepository struct {
 	db *pgx.Conn
 }
+
+var errGone = customerrors.NewGoneError(errors.New("shurl has been deleted"))
 
 func NewPostgresShURLRepository(connStr string) (*PostgresShURLRepository, error) {
 	//Если передана пустая строка - парсим конфиг
@@ -74,7 +78,8 @@ func NewPostgresShURLRepository(connStr string) (*PostgresShURLRepository, error
 		CREATE TABLE IF NOT EXISTS shurls (
 			token VARCHAR(8) PRIMARY KEY,
 			longurl TEXT NOT NULL UNIQUE,
-			createdby TEXT NOT NULL
+			createdby TEXT NOT NULL,
+			deleted BOOLEAN DEFAULT false
 		)
 	`)
 	if err != nil {
@@ -85,7 +90,7 @@ func NewPostgresShURLRepository(connStr string) (*PostgresShURLRepository, error
 }
 
 func (r *PostgresShURLRepository) GetAll(ctx context.Context) ([]entities.ShURL, error) {
-	rows, err := r.db.Query(ctx, "SELECT token, longurl, createdby FROM shurls")
+	rows, err := r.db.Query(ctx, "SELECT token, longurl, createdby FROM shurls WHERE deleted = false")
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +121,13 @@ func (r *PostgresShURLRepository) GetAll(ctx context.Context) ([]entities.ShURL,
 
 func (r *PostgresShURLRepository) Get(ctx context.Context, id string) (*entities.ShURL, error) {
 	var shurl entities.ShURL
-	err := r.db.QueryRow(ctx, "SELECT token, longurl, createdby FROM shurls WHERE token = $1", id).Scan(&shurl.Token, &shurl.LongURL, &shurl.CreatedBy)
+	var deleted bool
+	err := r.db.QueryRow(ctx, "SELECT token, longurl, createdby, deleted FROM shurls WHERE token = $1", id).Scan(&shurl.Token, &shurl.LongURL, &shurl.CreatedBy, &deleted)
+
+	if deleted {
+		return nil, errGone
+	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -137,7 +148,7 @@ func (r *PostgresShURLRepository) Update(ctx context.Context, shurl *entities.Sh
 }
 
 func (r *PostgresShURLRepository) Delete(ctx context.Context, id string) error {
-	_, err := r.db.Exec(ctx, "DELETE FROM countries WHERE token = $1", id)
+	_, err := r.db.Exec(ctx, "UPDATE countries SET deleted = true WHERE token = $1", id)
 	return err
 }
 

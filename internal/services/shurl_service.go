@@ -71,8 +71,34 @@ func (s *ShURLService) Update(ctx context.Context, shurl *entities.ShURL) error 
 	return s.repo.Update(ctx, shurl)
 }
 
-func (s *ShURLService) Delete(ctx context.Context, token string) error {
+func (s *ShURLService) Delete(ctx context.Context, token string, userID string) error {
 	return s.repo.Delete(ctx, token)
+
+	// Недочитал условия задачи в 15 инкременте :(
+	// shURLToDelete, err := s.repo.Get(ctx, token)
+	// if err != nil {
+	// 	return err
+	// }
+
+	// if shURLToDelete.CreatedBy == userID {
+	// 	return s.repo.Delete(ctx, token)
+	// }
+
+	// return customerrors.NewNotAllowedError(fmt.Errorf("shurl can be deleted only by its creator"))
+}
+
+func (s *ShURLService) DeleteAllShURLsByUserID(ctx context.Context, userID string) ([]entities.ShURL, error) {
+	shURLsToDelete, err := s.GetAllShURLsByUserID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	//TODO: в идеале объединить в одну транзакцию
+	for _, shURLToDelete := range shURLsToDelete {
+		s.repo.Delete(ctx, shURLToDelete.Token)
+	}
+
+	return shURLsToDelete, nil
 }
 
 func (s *ShURLService) GetAllShURLsByUserID(ctx context.Context, userID string) ([]entities.ShURL, error) {

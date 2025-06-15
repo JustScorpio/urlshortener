@@ -93,6 +93,7 @@ func run() error {
 		r.Use(gzipencoder.GZIPEncodingMiddleware())
 		r.Get("/ping", pingFunc)
 		r.Get("/api/user/urls", shURLHandler.GetShURLsByUserID)
+		r.Delete("/api/user/urls", shURLHandler.DeleteShURLsByUserID)
 		r.Get("/{token}", shURLHandler.GetFullURL)
 		r.Post("/api/shorten", shURLHandler.ShortenURL)
 		r.Post("/api/shorten/batch", shURLHandler.ShortenURLsBatch)
@@ -103,11 +104,12 @@ func run() error {
 
 	// Если разные - разные сервера для разных хэндлеров в разных горутинах
 	redirectRouter := chi.NewRouter()
-	redirectRouter.Use(auth.AuthMiddleware()) //Нужно только при обращении к /api/{user}/urls
+	redirectRouter.Use(auth.AuthMiddleware()) //Нужно при обращении к /api/user/urls (GET и DELETE)
 	redirectRouter.Use(logger.LoggingMiddleware(zapLogger))
 	redirectRouter.Use(gzipencoder.GZIPEncodingMiddleware())
 	redirectRouter.Get("/ping", pingFunc) //Дублируется в обоих роутерах
 	redirectRouter.Get("/api/user/urls", shURLHandler.GetShURLsByUserID)
+	redirectRouter.Delete("/api/user/urls", shURLHandler.DeleteShURLsByUserID)
 	redirectRouter.Get("/{token}", shURLHandler.GetFullURL)
 
 	shortenerRouter := chi.NewRouter()

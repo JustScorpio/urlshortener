@@ -44,7 +44,15 @@ func (h *ShURLHandler) GetFullURL(w http.ResponseWriter, r *http.Request) {
 	// Получение сущности из сервиса
 	shURL, err := h.service.Get(r.Context(), token)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		var statusCode = http.StatusInternalServerError
+
+		//Если запрашивается shURL c deleted = true, вернётся ошибка с кодом 410
+		var httpErr *customerrors.HTTPError
+		if errors.As(err, &httpErr) {
+			statusCode = httpErr.Code
+		}
+
+		http.Error(w, err.Error(), statusCode)
 		return
 	}
 
@@ -242,7 +250,7 @@ func (h *ShURLHandler) GetShURLsByUserID(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Получение сущности из сервиса
+	// Получение сущностей из сервиса
 	shURLs, err := h.service.GetAllShURLsByUserID(r.Context(), userID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -274,5 +282,47 @@ func (h *ShURLHandler) GetShURLsByUserID(w http.ResponseWriter, r *http.Request)
 
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
+	w.Write(jsonData)
+}
+
+// Удалить ShURLы Пользователя
+func (h *ShURLHandler) DeleteShURLsByUserID(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete {
+		// разрешаем только Delete-запросы
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	userID := customcontext.GetUserID(r.Context())
+	if userID == "" {
+		// UserID в куке пуст
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	// Удаление сущностей и сохранение удалённых сущностей в deletedShURLs
+	deletedShURLs, err := h.service.DeleteAllShURLsByUserID(r.Context(), userID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if len(deletedShURLs) == 0 {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	var tokens []string
+	for _, shURL := range deletedShURLs {
+		tokens = append(tokens, shURL.Token)
+	}
+
+	jsonData, err := json.Marshal(tokens)
+	if err != nil {
+		return
+	}
+
+	w.Header().Add("Content-Type", "application/json")
+	w.WriteHeader(http.StatusAccepted)
 	w.Write(jsonData)
 }

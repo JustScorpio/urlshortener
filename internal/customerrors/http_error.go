@@ -27,3 +27,17 @@ func NewAlreadyExistsError(err error) error {
 		Err:  err,
 	}
 }
+
+func NewNotAllowedError(err error) error {
+	return &HTTPError{
+		Code: http.StatusMethodNotAllowed,
+		Err:  err,
+	}
+}
+
+func NewGoneError(err error) error {
+	return &HTTPError{
+		Code: http.StatusGone,
+		Err:  err,
+	}
+}
