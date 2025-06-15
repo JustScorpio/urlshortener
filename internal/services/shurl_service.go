@@ -88,9 +88,23 @@ func (s *ShURLService) Delete(ctx context.Context, token string, userID string) 
 }
 
 func (s *ShURLService) DeleteAllShURLsByUserID(ctx context.Context, userID string) ([]entities.ShURL, error) {
+
 	shURLsToDelete, err := s.GetAllShURLsByUserID(ctx, userID)
 	if err != nil {
 		return nil, err
+	}
+
+	// Создаем каналы для работы с горутинами
+	jobs := make(chan entities.ShURL, len(shURLsToDelete))
+
+	// Запускаем worker'ов
+	numWorkers := len(shURLsToDelete) // Количество параллельных worker'ов
+	for i := 0; i < numWorkers; i++ {
+		go func(ctx context.Context, jobs <-chan entities.ShURL) {
+			for shURL := range jobs {
+				s.repo.Delete(ctx, shURL.Token)
+			}
+		}(ctx, jobs)
 	}
 
 	//TODO: в идеале объединить в одну транзакцию
