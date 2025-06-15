@@ -14,14 +14,36 @@ import (
 
 type ShURLService struct {
 	//ВАЖНО: В Go интерфейсы УЖЕ ЯВЛЯЮТСЯ ССЫЛОЧНЫМ ТИПОМ (под капотом — указатель на структуру)
-	repo repository.IRepository[entities.ShURL]
+	repo          repository.IRepository[entities.ShURL]
+	deletionQueue chan deletionTask // канал-очередь задач
+}
+
+type deletionTask struct {
+	tokens  []string
+	userID  string
+	context context.Context
 }
 
 var notAllowedError = customerrors.NewNotAllowedError(errors.New("shurl can be deleted only by its creator"))
 var alreadyExistsError = customerrors.NewAlreadyExistsError(fmt.Errorf("shurl already exists"))
 
-func NewShURLService(repo repository.IRepository[entities.ShURL]) *ShURLService {
-	return &ShURLService{repo: repo}
+func NewShURLService(repo repository.IRepository[entities.ShURL], workers int) *ShURLService {
+	service := &ShURLService{repo: repo}
+	// Запускаем воркеры
+	for i := 0; i < workers; i++ {
+		go service.runDeletionWorker()
+	}
+
+	return service
+}
+
+func (s *ShURLService) runDeletionWorker() {
+	for task := range s.deletionQueue {
+		go func(task deletionTask) {
+			// Обработка задачи (без обработки ошибок)
+			s.DeleteMany(task.context, task.userID, task.tokens)
+		}(task)
+	}
 }
 
 func (s *ShURLService) GetAll(ctx context.Context) ([]entities.ShURL, error) {
@@ -89,23 +111,31 @@ func (s *ShURLService) Delete(ctx context.Context, token string, userID string) 
 }
 
 func (s *ShURLService) DeleteMany(ctx context.Context, userID string, shURLsToDeleteTokens []string) error {
-	go func(ctx context.Context) {
-		shURLsAllowedToDelete, _ := s.GetAllShURLsByUserID(ctx, userID)
-		// if err != nil {
-		// 	return err
-		// }
+	shURLsAllowedToDelete, err := s.GetAllShURLsByUserID(ctx, userID)
+	if err != nil {
+		return err
+	}
 
-		var shURLsAcceptedForDeletionTokens []string
-		for _, shURLToDeleteToken := range shURLsToDeleteTokens {
-			for _, checkingShURL := range shURLsAllowedToDelete {
-				if checkingShURL.Token == shURLToDeleteToken {
-					shURLsAcceptedForDeletionTokens = append(shURLsAcceptedForDeletionTokens, shURLToDeleteToken)
-					break
-				}
+	var shURLsAcceptedForDeletionTokens []string
+	for _, shURLToDeleteToken := range shURLsToDeleteTokens {
+		for _, checkingShURL := range shURLsAllowedToDelete {
+			if checkingShURL.Token == shURLToDeleteToken {
+				shURLsAcceptedForDeletionTokens = append(shURLsAcceptedForDeletionTokens, shURLToDeleteToken)
+				break
 			}
 		}
-		s.repo.Delete(ctx, shURLsAcceptedForDeletionTokens)
-	}(ctx)
+	}
+	s.repo.Delete(ctx, shURLsAcceptedForDeletionTokens)
+
+	return nil
+}
+
+func (s *ShURLService) DeleteManyAsync(ctx context.Context, userID string, shURLsToDeleteTokens []string) error {
+	s.deletionQueue <- deletionTask{
+		tokens:  shURLsToDeleteTokens,
+		userID:  userID,
+		context: ctx,
+	}
 
 	return nil
 }
