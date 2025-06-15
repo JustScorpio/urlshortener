@@ -286,7 +286,7 @@ func (h *ShURLHandler) GetShURLsByUserID(w http.ResponseWriter, r *http.Request)
 }
 
 // Удалить ShURLы Пользователя
-func (h *ShURLHandler) DeleteShURLs(w http.ResponseWriter, r *http.Request) {
+func (h *ShURLHandler) DeleteMany(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodDelete {
 		// разрешаем только Delete-запросы
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -323,7 +323,7 @@ func (h *ShURLHandler) DeleteShURLs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Удаление сущностей и сохранение удалённых сущностей в deletedShURLs
-	err = h.service.DeleteAllShURLs(r.Context(), userID, tokens)
+	err = h.service.DeleteMany(r.Context(), userID, tokens)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

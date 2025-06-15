@@ -166,32 +166,33 @@ func (r *JSONFileShURLRepository) Update(ctx context.Context, shurl *entities.Sh
 	return errNotFound
 }
 
-func (r *JSONFileShURLRepository) Delete(ctx context.Context, token string) error {
+func (r *JSONFileShURLRepository) Delete(ctx context.Context, ids []string) error {
 	//При работе с json-файлом перезаписывается всё содержимое, поэтому работаем с ShURLEntry чтобы не потерять удалённые записи
 	entries, err := r.GetAllEntries(ctx)
 	if err != nil {
 		return err
 	}
 
-	for i, entry := range entries {
-		// Проверяем, не отменен ли контекст перед началом работы
-		if err := ctx.Err(); err != nil {
-			return err
-		}
-
-		if entry.ShURL.Token == token {
-			entries[i].Deleted = true
-
-			jsonShurls, err := json.MarshalIndent(entries, "", "   ")
-			if err != nil {
+	for _, id := range ids {
+		for i, entry := range entries {
+			// Проверяем, не отменен ли контекст перед началом работы
+			if err := ctx.Err(); err != nil {
 				return err
 			}
 
-			return os.WriteFile(r.filePath, jsonShurls, 0644)
+			if entry.ShURL.Token == id {
+				entries[i].Deleted = true
+				break
+			}
 		}
 	}
 
-	return errNotFound
+	jsonShurls, err := json.MarshalIndent(entries, "", "   ")
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(r.filePath, jsonShurls, 0644)
 }
 
 func (r *JSONFileShURLRepository) CloseConnection() {

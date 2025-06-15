@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/JustScorpio/urlshortener/internal/customerrors"
 	"github.com/JustScorpio/urlshortener/internal/models/entities"
@@ -147,8 +148,8 @@ func (r *PostgresShURLRepository) Update(ctx context.Context, shurl *entities.Sh
 	return err
 }
 
-func (r *PostgresShURLRepository) Delete(ctx context.Context, id string) error {
-	_, err := r.db.Exec(ctx, "UPDATE countries SET deleted = true WHERE token = $1", id)
+func (r *PostgresShURLRepository) Delete(ctx context.Context, ids []string) error {
+	_, err := r.db.Exec(ctx, "UPDATE countries SET deleted = true WHERE token in ($1)", strings.Join(ids, ", "))
 	return err
 }
 

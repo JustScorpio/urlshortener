@@ -53,12 +53,11 @@ func (r *MockRepository) Update(ctx context.Context, shurl *entities.ShURL) erro
 	return nil
 }
 
-func (r *MockRepository) Delete(ctx context.Context, id string) error {
-	if _, exists := r.db[id]; !exists {
-		return nil
+func (r *MockRepository) Delete(ctx context.Context, ids []string) error {
+	for _, id := range ids {
+		delete(r.db, id)
 	}
 
-	delete(r.db, id)
 	return nil
 }
 

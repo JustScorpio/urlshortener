@@ -82,25 +82,33 @@ func (s *ShURLService) Delete(ctx context.Context, token string, userID string) 
 	}
 
 	if shURLToDelete.CreatedBy == userID {
-		return s.repo.Delete(ctx, token)
+		return s.repo.Delete(ctx, []string{token})
 	}
 
 	return notAllowedError
 }
 
-func (s *ShURLService) DeleteAllShURLs(ctx context.Context, userID string, shURLsToDelete []string) error {
-	// Создаем каналы для работы с горутинами
-	jobs := make(chan string, len(shURLsToDelete))
-
-	// Запускаем worker'ов
-	numWorkers := len(shURLsToDelete) // Количество параллельных worker'ов
-	for i := 0; i < numWorkers; i++ {
-		go func(ctx context.Context, jobs <-chan string) {
-			for token := range jobs {
-				s.Delete(ctx, token, userID)
-			}
-		}(ctx, jobs)
+func (s *ShURLService) DeleteMany(ctx context.Context, userID string, shURLsToDeleteTokens []string) error {
+	shURLsAllowedToDelete, err := s.GetAllShURLsByUserID(ctx, userID)
+	if err != nil {
+		return err
 	}
+
+	var shURLsAcceptedForDeletionTokens []string
+	for _, shURLToDeleteToken := range shURLsToDeleteTokens {
+		for _, checkingShURL := range shURLsAllowedToDelete {
+			if checkingShURL.Token == shURLToDeleteToken {
+				shURLsAcceptedForDeletionTokens = append(shURLsAcceptedForDeletionTokens, shURLToDeleteToken)
+				break
+			}
+		}
+	}
+
+	// Создаем каналы для работы с горутинами
+	channels := make(chan string, len(shURLsAcceptedForDeletionTokens))
+	go func(ctx context.Context, channels <-chan string) {
+		s.repo.Delete(ctx, shURLsAcceptedForDeletionTokens)
+	}(ctx, channels)
 
 	return nil
 }
