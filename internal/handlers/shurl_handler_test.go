@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"errors"
 	"maps"
 	"net/http"
@@ -9,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/JustScorpio/urlshortener/internal/models"
+	"github.com/JustScorpio/urlshortener/internal/models/entities"
 	"github.com/JustScorpio/urlshortener/internal/services"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -18,14 +19,14 @@ import (
 
 type MockRepository struct {
 	mock.Mock
-	db map[string]models.ShURL
+	db map[string]entities.ShURL
 }
 
-func (r *MockRepository) GetAll() ([]models.ShURL, error) {
+func (r *MockRepository) GetAll(ctx context.Context) ([]entities.ShURL, error) {
 	return slices.Collect(maps.Values(r.db)), nil
 }
 
-func (r *MockRepository) Get(id string) (*models.ShURL, error) {
+func (r *MockRepository) Get(ctx context.Context, id string) (*entities.ShURL, error) {
 	val, exists := r.db[id]
 	if !exists {
 		return nil, errors.New("Entry not found")
@@ -34,7 +35,7 @@ func (r *MockRepository) Get(id string) (*models.ShURL, error) {
 	return &val, nil
 }
 
-func (r *MockRepository) Create(shurl *models.ShURL) error {
+func (r *MockRepository) Create(ctx context.Context, shurl *entities.ShURL) error {
 	if _, exists := r.db[shurl.Token]; exists {
 		return errors.New("Entry with such id already exists")
 	}
@@ -43,7 +44,7 @@ func (r *MockRepository) Create(shurl *models.ShURL) error {
 	return nil
 }
 
-func (r *MockRepository) Update(shurl *models.ShURL) error {
+func (r *MockRepository) Update(ctx context.Context, shurl *entities.ShURL) error {
 	if _, exists := r.db[shurl.Token]; !exists {
 		return nil
 	}
@@ -52,17 +53,20 @@ func (r *MockRepository) Update(shurl *models.ShURL) error {
 	return nil
 }
 
-func (r *MockRepository) Delete(id string) error {
-	if _, exists := r.db[id]; !exists {
-		return nil
+func (r *MockRepository) Delete(ctx context.Context, ids []string) error {
+	for _, id := range ids {
+		delete(r.db, id)
 	}
 
-	delete(r.db, id)
 	return nil
 }
 
 func (r *MockRepository) CloseConnection() {
 	//Nothing
+}
+
+func (r *MockRepository) PingDB() bool {
+	return true
 }
 
 func TestShURLHandler_GetFullURL(t *testing.T) {
@@ -72,10 +76,10 @@ func TestShURLHandler_GetFullURL(t *testing.T) {
 		location   string
 	}
 
-	shurl1 := models.ShURL{Token: "acbdefgh", LongURL: "https://practicum.yandex.ru/"}
-	shurl2 := models.ShURL{Token: "bcdefghi", LongURL: "https://www.google.com/"}
-	shurl3 := models.ShURL{Token: "cdefghij", LongURL: "https://vk.com/"}
-	shurls := map[string]models.ShURL{
+	shurl1 := entities.ShURL{Token: "acbdefgh", LongURL: "https://practicum.yandex.ru/"}
+	shurl2 := entities.ShURL{Token: "bcdefghi", LongURL: "https://www.google.com/"}
+	shurl3 := entities.ShURL{Token: "cdefghij", LongURL: "https://vk.com/"}
+	shurls := map[string]entities.ShURL{
 		shurl1.Token: shurl1,
 		shurl2.Token: shurl2,
 		shurl3.Token: shurl3,
@@ -155,10 +159,10 @@ func TestShURLHandler_ShortenURL(t *testing.T) {
 		token      string
 	}
 
-	shurl1 := models.ShURL{Token: "acbdefgh", LongURL: "https://practicum.yandex.ru/"}
-	shurl2 := models.ShURL{Token: "bcdefghi", LongURL: "https://www.google.com/"}
-	shurl3 := models.ShURL{Token: "cdefghij", LongURL: "https://vk.com/"}
-	shurls := map[string]models.ShURL{
+	shurl1 := entities.ShURL{Token: "acbdefgh", LongURL: "https://practicum.yandex.ru/"}
+	shurl2 := entities.ShURL{Token: "bcdefghi", LongURL: "https://www.google.com/"}
+	shurl3 := entities.ShURL{Token: "cdefghij", LongURL: "https://vk.com/"}
+	shurls := map[string]entities.ShURL{
 		shurl1.Token: shurl1,
 		shurl2.Token: shurl2,
 		shurl3.Token: shurl3,
@@ -194,7 +198,7 @@ func TestShURLHandler_ShortenURL(t *testing.T) {
 				url:    shurl1.LongURL,
 			},
 			want: want{
-				statusCode: http.StatusCreated,
+				statusCode: http.StatusConflict,
 				token:      shurl1.Token,
 			},
 		},
