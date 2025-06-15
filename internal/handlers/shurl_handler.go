@@ -286,10 +286,32 @@ func (h *ShURLHandler) GetShURLsByUserID(w http.ResponseWriter, r *http.Request)
 }
 
 // Удалить ShURLы Пользователя
-func (h *ShURLHandler) DeleteShURLsByUserID(w http.ResponseWriter, r *http.Request) {
+func (h *ShURLHandler) DeleteShURLs(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodDelete {
 		// разрешаем только Delete-запросы
 		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	//Читаем тело запроса
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, "Failed to read request body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+
+	//Если Body пуст
+	if len(body) == 0 {
+		http.Error(w, "Body is empty", http.StatusBadRequest)
+		return
+	}
+
+	var tokens []string
+
+	//Извлекаем токены из JSON
+	if err = json.Unmarshal(body, &tokens); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -301,28 +323,12 @@ func (h *ShURLHandler) DeleteShURLsByUserID(w http.ResponseWriter, r *http.Reque
 	}
 
 	// Удаление сущностей и сохранение удалённых сущностей в deletedShURLs
-	deletedShURLs, err := h.service.DeleteAllShURLsByUserID(r.Context(), userID)
+	err = h.service.DeleteAllShURLs(r.Context(), userID, tokens)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	if len(deletedShURLs) == 0 {
-		w.WriteHeader(http.StatusNoContent)
-		return
-	}
-
-	var tokens []string
-	for _, shURL := range deletedShURLs {
-		tokens = append(tokens, shURL.Token)
-	}
-
-	jsonData, err := json.Marshal(tokens)
-	if err != nil {
-		return
-	}
-
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusAccepted)
-	w.Write(jsonData)
 }

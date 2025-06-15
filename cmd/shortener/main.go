@@ -93,7 +93,7 @@ func run() error {
 		r.Use(gzipencoder.GZIPEncodingMiddleware())
 		r.Get("/ping", pingFunc)
 		r.Get("/api/user/urls", shURLHandler.GetShURLsByUserID)
-		r.Delete("/api/user/urls", shURLHandler.DeleteShURLsByUserID)
+		r.Delete("/api/user/urls", shURLHandler.DeleteShURLs)
 		r.Get("/{token}", shURLHandler.GetFullURL)
 		r.Post("/api/shorten", shURLHandler.ShortenURL)
 		r.Post("/api/shorten/batch", shURLHandler.ShortenURLsBatch)
@@ -109,7 +109,7 @@ func run() error {
 	redirectRouter.Use(gzipencoder.GZIPEncodingMiddleware())
 	redirectRouter.Get("/ping", pingFunc) //Дублируется в обоих роутерах
 	redirectRouter.Get("/api/user/urls", shURLHandler.GetShURLsByUserID)
-	redirectRouter.Delete("/api/user/urls", shURLHandler.DeleteShURLsByUserID)
+	redirectRouter.Delete("/api/user/urls", shURLHandler.DeleteShURLs)
 	redirectRouter.Get("/{token}", shURLHandler.GetFullURL)
 
 	shortenerRouter := chi.NewRouter()

@@ -9,12 +9,16 @@ import (
 	"github.com/JustScorpio/urlshortener/internal/models/entities"
 	"github.com/JustScorpio/urlshortener/internal/repository"
 	"github.com/jaevor/go-nanoid"
+	"github.com/pkg/errors"
 )
 
 type ShURLService struct {
 	//ВАЖНО: В Go интерфейсы УЖЕ ЯВЛЯЮТСЯ ССЫЛОЧНЫМ ТИПОМ (под капотом — указатель на структуру)
 	repo repository.IRepository[entities.ShURL]
 }
+
+var notAllowedError = customerrors.NewNotAllowedError(errors.New("shurl can be deleted only by its creator"))
+var alreadyExistsError = customerrors.NewAlreadyExistsError(fmt.Errorf("shurl already exists"))
 
 func NewShURLService(repo repository.IRepository[entities.ShURL]) *ShURLService {
 	return &ShURLService{repo: repo}
@@ -46,7 +50,7 @@ func (s *ShURLService) Create(ctx context.Context, newURL dtos.NewShURL) (*entit
 
 		//TODO: если разные пользователи укоротили один урл, дубль должен писаться? По идее да
 		if existedURL.LongURL == longURL {
-			return &existedURL, customerrors.NewAlreadyExistsError(fmt.Errorf("shurl for %v already exists", longURL))
+			return &existedURL, alreadyExistsError
 		}
 	}
 
@@ -72,47 +76,33 @@ func (s *ShURLService) Update(ctx context.Context, shurl *entities.ShURL) error 
 }
 
 func (s *ShURLService) Delete(ctx context.Context, token string, userID string) error {
-	return s.repo.Delete(ctx, token)
-
-	// Недочитал условия задачи в 15 инкременте :(
-	// shURLToDelete, err := s.repo.Get(ctx, token)
-	// if err != nil {
-	// 	return err
-	// }
-
-	// if shURLToDelete.CreatedBy == userID {
-	// 	return s.repo.Delete(ctx, token)
-	// }
-
-	// return customerrors.NewNotAllowedError(fmt.Errorf("shurl can be deleted only by its creator"))
-}
-
-func (s *ShURLService) DeleteAllShURLsByUserID(ctx context.Context, userID string) ([]entities.ShURL, error) {
-
-	shURLsToDelete, err := s.GetAllShURLsByUserID(ctx, userID)
+	shURLToDelete, err := s.repo.Get(ctx, token)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
+	if shURLToDelete.CreatedBy == userID {
+		return s.repo.Delete(ctx, token)
+	}
+
+	return notAllowedError
+}
+
+func (s *ShURLService) DeleteAllShURLs(ctx context.Context, userID string, shURLsToDelete []string) error {
 	// Создаем каналы для работы с горутинами
-	jobs := make(chan entities.ShURL, len(shURLsToDelete))
+	jobs := make(chan string, len(shURLsToDelete))
 
 	// Запускаем worker'ов
 	numWorkers := len(shURLsToDelete) // Количество параллельных worker'ов
 	for i := 0; i < numWorkers; i++ {
-		go func(ctx context.Context, jobs <-chan entities.ShURL) {
-			for shURL := range jobs {
-				s.repo.Delete(ctx, shURL.Token)
+		go func(ctx context.Context, jobs <-chan string) {
+			for token := range jobs {
+				s.Delete(ctx, token, userID)
 			}
 		}(ctx, jobs)
 	}
 
-	//TODO: в идеале объединить в одну транзакцию
-	for _, shURLToDelete := range shURLsToDelete {
-		s.repo.Delete(ctx, shURLToDelete.Token)
-	}
-
-	return shURLsToDelete, nil
+	return nil
 }
 
 func (s *ShURLService) GetAllShURLsByUserID(ctx context.Context, userID string) ([]entities.ShURL, error) {
