@@ -10,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 
 	"github.com/JustScorpio/urlshortener/internal/customerrors"
 	"github.com/JustScorpio/urlshortener/internal/models/entities"
@@ -26,7 +25,6 @@ type DBConfiguration struct {
 
 type SQLiteShURLRepository struct {
 	db *sql.DB
-	mu sync.Mutex
 }
 
 var errGone = customerrors.NewGoneError(errors.New("shurl has been deleted"))
@@ -77,9 +75,6 @@ func NewSQLiteShURLRepository() (*SQLiteShURLRepository, error) {
 }
 
 func (r *SQLiteShURLRepository) GetAll(ctx context.Context) ([]entities.ShURL, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
 	rows, err := r.db.QueryContext(ctx, "SELECT token, longurl, createdby FROM shurls WHERE deleted = FALSE")
 	if err != nil {
 		return nil, err
@@ -109,9 +104,6 @@ func (r *SQLiteShURLRepository) GetAll(ctx context.Context) ([]entities.ShURL, e
 }
 
 func (r *SQLiteShURLRepository) Get(ctx context.Context, id string) (*entities.ShURL, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
 	var shurl entities.ShURL
 	var deleted bool
 	err := r.db.QueryRowContext(
@@ -131,9 +123,6 @@ func (r *SQLiteShURLRepository) Get(ctx context.Context, id string) (*entities.S
 }
 
 func (r *SQLiteShURLRepository) Create(ctx context.Context, shurl *entities.ShURL) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
 	_, err := r.db.ExecContext(
 		ctx,
 		"INSERT INTO shurls (token, longurl, createdby) VALUES (?, ?, ?)",
@@ -145,9 +134,6 @@ func (r *SQLiteShURLRepository) Create(ctx context.Context, shurl *entities.ShUR
 }
 
 func (r *SQLiteShURLRepository) Update(ctx context.Context, shurl *entities.ShURL) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
 	_, err := r.db.ExecContext(
 		ctx,
 		"UPDATE shurls SET longurl = ?, createdby = ? WHERE token = ?",
@@ -159,24 +145,15 @@ func (r *SQLiteShURLRepository) Update(ctx context.Context, shurl *entities.ShUR
 }
 
 func (r *SQLiteShURLRepository) Delete(ctx context.Context, ids []string) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
 	_, err := r.db.ExecContext(ctx, "UPDATE shurls SET deleted = TRUE WHERE token in (?)", strings.Join(ids, ", "))
 	return err
 }
 
 func (r *SQLiteShURLRepository) CloseConnection() {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
 	r.db.Close()
 }
 
 func (r *SQLiteShURLRepository) PingDB() bool {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
 	err := r.db.Ping()
 	return err == nil
 }
