@@ -33,10 +33,11 @@ func NewShURLService(repo repository.IRepository[entities.ShURL], workers int) *
 		deletionQueue: make(chan deletionTask),
 	}
 
-	// Запускаем воркеры
-	for i := 0; i < workers; i++ {
-		go service.runDeletionWorker()
-	}
+	go func() {
+		for task := range service.deletionQueue {
+			service.DeleteMany(task.context, task.userID, task.tokens)
+		}
+	}()
 
 	return service
 }
