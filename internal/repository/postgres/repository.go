@@ -149,7 +149,7 @@ func (r *PostgresShURLRepository) Update(ctx context.Context, shurl *entities.Sh
 }
 
 func (r *PostgresShURLRepository) Delete(ctx context.Context, ids []string) error {
-	_, err := r.db.Exec(ctx, "UPDATE countries SET deleted = true WHERE token in ($1)", strings.Join(ids, ", "))
+	_, err := r.db.Exec(ctx, "UPDATE shurls SET deleted = true WHERE token in ($1)", strings.Join(ids, ", "))
 	return err
 }
 
