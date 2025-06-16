@@ -30,7 +30,7 @@ var alreadyExistsError = customerrors.NewAlreadyExistsError(fmt.Errorf("shurl al
 func NewShURLService(repo repository.IRepository[entities.ShURL], workers int) *ShURLService {
 	service := &ShURLService{
 		repo:          repo,
-		deletionQueue: make(chan deletionTask),
+		deletionQueue: make(chan deletionTask, 500),
 	}
 
 	go func() {
