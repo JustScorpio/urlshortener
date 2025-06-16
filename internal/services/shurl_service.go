@@ -28,7 +28,11 @@ var notAllowedError = customerrors.NewNotAllowedError(errors.New("shurl can be d
 var alreadyExistsError = customerrors.NewAlreadyExistsError(fmt.Errorf("shurl already exists"))
 
 func NewShURLService(repo repository.IRepository[entities.ShURL], workers int) *ShURLService {
-	service := &ShURLService{repo: repo}
+	service := &ShURLService{
+		repo:          repo,
+		deletionQueue: make(chan deletionTask),
+	}
+
 	// Запускаем воркеры
 	for i := 0; i < workers; i++ {
 		go service.runDeletionWorker()
@@ -125,9 +129,8 @@ func (s *ShURLService) DeleteMany(ctx context.Context, userID string, shURLsToDe
 			}
 		}
 	}
-	s.repo.Delete(ctx, shURLsAcceptedForDeletionTokens)
 
-	return nil
+	return s.repo.Delete(ctx, shURLsAcceptedForDeletionTokens)
 }
 
 func (s *ShURLService) DeleteManyAsync(ctx context.Context, userID string, shURLsToDeleteTokens []string) error {
