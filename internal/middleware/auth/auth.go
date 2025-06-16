@@ -88,9 +88,9 @@ func AuthMiddleware() func(http.Handler) http.Handler {
 				newCookie := &http.Cookie{
 					Name:     jwtCookieName,
 					Value:    newToken,
+					Path:     "/",
 					Expires:  time.Now().Add(tokenLifeTime), //Срок жизни куки - такой же как и у токена
 					HttpOnly: true,
-					SameSite: http.SameSiteLaxMode,
 				}
 
 				http.SetCookie(w, newCookie)
