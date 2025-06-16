@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/JustScorpio/urlshortener/internal/customerrors"
 	"github.com/JustScorpio/urlshortener/internal/models/dtos"
@@ -30,12 +31,15 @@ var alreadyExistsError = customerrors.NewAlreadyExistsError(fmt.Errorf("shurl al
 func NewShURLService(repo repository.IRepository[entities.ShURL], workers int) *ShURLService {
 	service := &ShURLService{
 		repo:          repo,
-		deletionQueue: make(chan deletionTask, 500),
+		deletionQueue: make(chan deletionTask, 73),
 	}
 
 	go func() {
 		for task := range service.deletionQueue {
-			service.DeleteMany(task.context, task.userID, task.tokens)
+			err := service.DeleteMany(task.context, task.userID, task.tokens)
+			if err != nil {
+				log.Printf("Failed to delete URLs: %v", err)
+			}
 		}
 	}()
 
