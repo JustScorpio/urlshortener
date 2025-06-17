@@ -17,7 +17,6 @@ type ShURLService struct {
 	//ВАЖНО: В Go интерфейсы УЖЕ ЯВЛЯЮТСЯ ССЫЛОЧНЫМ ТИПОМ (под капотом — указатель на структуру)
 	repo          repository.IRepository[entities.ShURL]
 	deletionQueue chan deletionTask // канал-очередь задач
-	sem           chan struct{}     // Семафор на 1 слот
 }
 
 type deletionTask struct {
@@ -37,9 +36,7 @@ func NewShURLService(repo repository.IRepository[entities.ShURL], workers int) *
 
 	go func() {
 		for task := range service.deletionQueue {
-			service.sem <- struct{}{} // Захватываем слот
 			err := service.DeleteMany(task.context, task.userID, task.tokens)
-			<-service.sem // Освобождаем
 			if err != nil {
 				log.Printf("Failed to delete URLs: %v", err)
 			}

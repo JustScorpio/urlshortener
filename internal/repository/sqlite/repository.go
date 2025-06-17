@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/JustScorpio/urlshortener/internal/customerrors"
 	"github.com/JustScorpio/urlshortener/internal/models/entities"
@@ -145,7 +144,7 @@ func (r *SQLiteShURLRepository) Update(ctx context.Context, shurl *entities.ShUR
 }
 
 func (r *SQLiteShURLRepository) Delete(ctx context.Context, ids []string, userID string) error {
-	_, err := r.db.ExecContext(ctx, "UPDATE shurls SET deleted = TRUE WHERE token IN (?) AND createdby = ?", strings.Join(ids, ", "), userID)
+	_, err := r.db.ExecContext(ctx, "UPDATE shurls SET deleted = TRUE WHERE token = ANY(?) AND createdby = ?", ids, userID)
 	return err
 }
 

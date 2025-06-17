@@ -40,23 +40,23 @@ func NewPostgresShURLRepository(connStr string) (*PostgresShURLRepository, error
 	// 	connStr = fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=%s", conf.Host, conf.User, conf.Password, conf.DBName, conf.Port, conf.SslMode)
 	// }
 
-	//Создание базы данных (Закомментировано т.к. в тестах используется уже созданная)
-	// defaultDB, err := pgx.Connect(ctx, connStr)
+	// // Создание базы данных (Закомментировано т.к. в тестах используется уже созданная)
+	// defaultDB, err := pgx.Connect(context.Background(), connStr)
 	// if err != nil {
 	// 	return nil, fmt.Errorf("failed to connect to default database: %w", err)
 	// }
-	// defer defaultDB.Close(ctx)
+	// defer defaultDB.Close(context.Background())
 
 	// // Проверка и создание базы данных
 	// var dbExists bool
-	// err = defaultDB.QueryRow(ctx, "SELECT EXISTS (SELECT 1 FROM pg_database WHERE datname = $1)", conf.DBName).Scan(&dbExists)
+	// err = defaultDB.QueryRow(context.Background(), "SELECT EXISTS (SELECT 1 FROM pg_database WHERE datname = $1)", conf.DBName).Scan(&dbExists)
 	// if err != nil {
 	// 	return nil, fmt.Errorf("failed to check database existence: %w", err)
 	// }
 
 	// // Создание базы данных, если она не существует
 	// if !dbExists {
-	// 	_, err = defaultDB.Exec(ctx, fmt.Sprintf("CREATE DATABASE %s", conf.DBName))
+	// 	_, err = defaultDB.Exec(context.Background(), fmt.Sprintf("CREATE DATABASE %s", conf.DBName))
 	// 	if err != nil {
 	// 		return nil, fmt.Errorf("failed to create database: %w", err)
 	// 	}
