@@ -123,22 +123,22 @@ func (s *ShURLService) Delete(ctx context.Context, token string, userID string) 
 }
 
 func (s *ShURLService) DeleteMany(ctx context.Context, userID string, shURLsToDeleteTokens []string) error {
-	shURLsAllowedToDelete, err := s.GetAllShURLsByUserID(ctx, userID)
-	if err != nil {
-		return err
-	}
+	// shURLsAllowedToDelete, err := s.GetAllShURLsByUserID(ctx, userID)
+	// if err != nil {
+	// 	return err
+	// }
 
-	var shURLsAcceptedForDeletionTokens []string
-	for _, shURLToDeleteToken := range shURLsToDeleteTokens {
-		for _, checkingShURL := range shURLsAllowedToDelete {
-			if checkingShURL.Token == shURLToDeleteToken {
-				shURLsAcceptedForDeletionTokens = append(shURLsAcceptedForDeletionTokens, shURLToDeleteToken)
-				break
-			}
-		}
-	}
+	// var shURLsAcceptedForDeletionTokens []string
+	// for _, shURLToDeleteToken := range shURLsToDeleteTokens {
+	// 	for _, checkingShURL := range shURLsAllowedToDelete {
+	// 		if checkingShURL.Token == shURLToDeleteToken {
+	// 			shURLsAcceptedForDeletionTokens = append(shURLsAcceptedForDeletionTokens, shURLToDeleteToken)
+	// 			break
+	// 		}
+	// 	}
+	// }
 
-	return s.repo.Delete(ctx, shURLsAcceptedForDeletionTokens)
+	return s.repo.Delete(ctx, shURLsToDeleteTokens)
 }
 
 func (s *ShURLService) DeleteManyAsync(ctx context.Context, userID string, shURLsToDeleteTokens []string) error {
