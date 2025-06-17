@@ -323,7 +323,7 @@ func (h *ShURLHandler) DeleteMany(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Удаление сущностей
-	err = h.service.DeleteManyAsync(r.Context(), userID, tokens)
+	err = h.service.Delete(r.Context(), tokens, userID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
