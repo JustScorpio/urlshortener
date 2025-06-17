@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/JustScorpio/urlshortener/internal/customerrors"
 	"github.com/JustScorpio/urlshortener/internal/models/dtos"
@@ -33,7 +32,12 @@ type Task struct {
 	Type     TaskType
 	Context  context.Context
 	Payload  interface{}
-	ResultCh chan interface{}
+	ResultCh chan TaskResult
+}
+
+type TaskResult struct {
+	Result interface{}
+	Err    error
 }
 
 var alreadyExistsError = customerrors.NewAlreadyExistsError(errors.New("shurl already exists"))
@@ -79,10 +83,16 @@ func (s *ShURLService) taskProcessor() {
 		}
 
 		if task.ResultCh != nil {
-			if err != nil {
-				task.ResultCh <- err
-			} else {
-				task.ResultCh <- result
+			switch task.Type {
+			case TaskGetAll, TaskGet, TaskGetByUserID, TaskCreate:
+				task.ResultCh <- TaskResult{
+					Result: result,
+					Err:    err,
+				}
+			case TaskUpdate, TaskDelete:
+				task.ResultCh <- TaskResult{
+					Err: err,
+				}
 			}
 			close(task.ResultCh)
 		}
@@ -90,69 +100,48 @@ func (s *ShURLService) taskProcessor() {
 }
 
 // Поставить задачу в очередь
-func (s *ShURLService) enqueueTask(task Task) interface{} {
+func (s *ShURLService) enqueueTask(task Task) (interface{}, error) {
 	if task.ResultCh == nil {
-		task.ResultCh = make(chan interface{}, 1)
+		task.ResultCh = make(chan TaskResult, 1)
 	}
 
 	s.taskQueue <- task
 
 	select {
 	case <-task.Context.Done():
-		return task.Context.Err()
-	case result := <-task.ResultCh:
-		return result
+		return nil, task.Context.Err()
+	case res := <-task.ResultCh:
+		return res.Result, res.Err
 	}
 }
 
 func (s *ShURLService) GetAll(ctx context.Context) ([]entities.ShURL, error) {
-	result := s.enqueueTask(Task{
+	res, err := s.enqueueTask(Task{
 		Type:    TaskGetAll,
 		Context: ctx,
 	})
 
-	switch v := result.(type) {
-	case error:
-		return nil, v
-	case []entities.ShURL:
-		return v, nil
-	default:
-		return nil, fmt.Errorf("unexpected result type")
-	}
+	return res.([]entities.ShURL), err
 }
 
 func (s *ShURLService) Get(ctx context.Context, token string) (*entities.ShURL, error) {
-	result := s.enqueueTask(Task{
+	res, err := s.enqueueTask(Task{
 		Type:    TaskGet,
 		Context: ctx,
 		Payload: token,
 	})
 
-	switch v := result.(type) {
-	case error:
-		return nil, v
-	case *entities.ShURL:
-		return v, nil
-	default:
-		return nil, fmt.Errorf("unexpected result type")
-	}
+	return res.(*entities.ShURL), err
 }
 
 func (s *ShURLService) Create(ctx context.Context, newURL dtos.NewShURL) (*entities.ShURL, error) {
-	result := s.enqueueTask(Task{
+	res, err := s.enqueueTask(Task{
 		Type:    TaskCreate,
 		Context: ctx,
 		Payload: &newURL,
 	})
 
-	switch v := result.(type) {
-	case error:
-		return nil, v
-	case *entities.ShURL:
-		return v, nil
-	default:
-		return nil, fmt.Errorf("unexpected result type")
-	}
+	return res.(*entities.ShURL), err
 }
 
 func (s *ShURLService) сreate(ctx context.Context, newURL dtos.NewShURL) (*entities.ShURL, error) {
@@ -194,20 +183,17 @@ func (s *ShURLService) сreate(ctx context.Context, newURL dtos.NewShURL) (*enti
 }
 
 func (s *ShURLService) Update(ctx context.Context, shurl *entities.ShURL) error {
-	result := s.enqueueTask(Task{
+	_, err := s.enqueueTask(Task{
 		Type:    TaskUpdate,
 		Context: ctx,
 		Payload: shurl,
 	})
 
-	if err, ok := result.(error); ok {
-		return err
-	}
-	return nil
+	return err
 }
 
 func (s *ShURLService) Delete(ctx context.Context, tokens []string, userID string) error {
-	result := s.enqueueTask(Task{
+	_, err := s.enqueueTask(Task{
 		Type:    TaskDelete,
 		Context: ctx,
 		Payload: struct {
@@ -216,27 +202,17 @@ func (s *ShURLService) Delete(ctx context.Context, tokens []string, userID strin
 		}{tokens, userID},
 	})
 
-	if err, ok := result.(error); ok {
-		return err
-	}
-	return nil
+	return err
 }
 
 func (s *ShURLService) GetAllShURLsByUserID(ctx context.Context, userID string) ([]entities.ShURL, error) {
-	result := s.enqueueTask(Task{
+	res, err := s.enqueueTask(Task{
 		Type:    TaskGetByUserID,
 		Context: ctx,
 		Payload: userID,
 	})
 
-	switch v := result.(type) {
-	case error:
-		return nil, v
-	case []entities.ShURL:
-		return v, nil
-	default:
-		return nil, fmt.Errorf("unexpected result type")
-	}
+	return res.([]entities.ShURL), err
 }
 
 func (s *ShURLService) getAllByUserID(ctx context.Context, userID string) ([]entities.ShURL, error) {
