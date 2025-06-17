@@ -163,7 +163,6 @@ func (s *ShURLService) сreate(ctx context.Context, newURL dtos.NewShURL) (*enti
 	}
 
 	longURL := newURL.LongURL
-	createdBy := newURL.CreatedBy
 
 	for _, existedURL := range existedURLs {
 		// Проверяем не отменен ли контекст
@@ -172,7 +171,7 @@ func (s *ShURLService) сreate(ctx context.Context, newURL dtos.NewShURL) (*enti
 		}
 
 		//TODO: если разные пользователи укоротили один урл, дубль должен писаться? По идее да
-		if existedURL.LongURL == longURL && existedURL.CreatedBy == createdBy {
+		if existedURL.LongURL == longURL {
 			return &existedURL, alreadyExistsError
 		}
 	}
