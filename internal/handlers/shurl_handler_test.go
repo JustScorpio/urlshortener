@@ -68,7 +68,7 @@ func (r *MockRepository) Delete(ctx context.Context, ids []string, userID string
 	for _, id := range ids {
 		entry := r.db[id]
 		if entry.ShURL.CreatedBy == userID {
-			entry.Deleted = true
+			r.db[id] = ShURLEntry{ShURL: r.db[id].ShURL, Deleted: true}
 		}
 	}
 
@@ -94,9 +94,9 @@ func TestShURLHandler_GetFullURL(t *testing.T) {
 	shurl2 := entities.ShURL{Token: "bcdefghi", LongURL: "https://www.google.com/"}
 	shurl3 := entities.ShURL{Token: "cdefghij", LongURL: "https://vk.com/"}
 	shurlsEntries := map[string]ShURLEntry{
-		shurl1.Token: ShURLEntry{shurl1, false},
-		shurl2.Token: ShURLEntry{shurl2, false},
-		shurl3.Token: ShURLEntry{shurl3, false},
+		shurl1.Token: {shurl1, false},
+		shurl2.Token: {shurl2, false},
+		shurl3.Token: {shurl3, false},
 	}
 	mockRepo := MockRepository{db: shurlsEntries}
 	mockService := services.NewShURLService(&mockRepo)
@@ -177,9 +177,9 @@ func TestShURLHandler_ShortenURL(t *testing.T) {
 	shurl2 := entities.ShURL{Token: "bcdefghi", LongURL: "https://www.google.com/"}
 	shurl3 := entities.ShURL{Token: "cdefghij", LongURL: "https://vk.com/"}
 	shurlsEntries := map[string]ShURLEntry{
-		shurl1.Token: ShURLEntry{shurl1, false},
-		shurl2.Token: ShURLEntry{shurl2, false},
-		shurl3.Token: ShURLEntry{shurl3, false},
+		shurl1.Token: {shurl1, false},
+		shurl2.Token: {shurl2, false},
+		shurl3.Token: {shurl3, false},
 	}
 	mockRepo := MockRepository{db: shurlsEntries}
 	mockService := services.NewShURLService(&mockRepo)
