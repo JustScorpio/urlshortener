@@ -28,7 +28,7 @@ type deletionTask struct {
 var notAllowedError = customerrors.NewNotAllowedError(errors.New("shurl can be deleted only by its creator"))
 var alreadyExistsError = customerrors.NewAlreadyExistsError(fmt.Errorf("shurl already exists"))
 
-func NewShURLService(repo repository.IRepository[entities.ShURL], workers int) *ShURLService {
+func NewShURLService(repo repository.IRepository[entities.ShURL]) *ShURLService {
 	service := &ShURLService{
 		repo:          repo,
 		deletionQueue: make(chan deletionTask, 73),
@@ -72,6 +72,7 @@ func (s *ShURLService) Create(ctx context.Context, newURL dtos.NewShURL) (*entit
 	}
 
 	longURL := newURL.LongURL
+	createdBy := newURL.CreatedBy
 
 	for _, existedURL := range existedURLs {
 		// Проверяем не отменен ли контекст
@@ -80,7 +81,7 @@ func (s *ShURLService) Create(ctx context.Context, newURL dtos.NewShURL) (*entit
 		}
 
 		//TODO: если разные пользователи укоротили один урл, дубль должен писаться? По идее да
-		if existedURL.LongURL == longURL {
+		if existedURL.LongURL == longURL && existedURL.CreatedBy == createdBy {
 			return &existedURL, alreadyExistsError
 		}
 	}
