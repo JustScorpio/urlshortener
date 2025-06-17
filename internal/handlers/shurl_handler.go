@@ -322,7 +322,7 @@ func (h *ShURLHandler) DeleteMany(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Удаление сущностей и сохранение удалённых сущностей в deletedShURLs
+	// Удаление сущностей
 	err = h.service.DeleteManyAsync(r.Context(), userID, tokens)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

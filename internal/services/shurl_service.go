@@ -110,16 +110,7 @@ func (s *ShURLService) Update(ctx context.Context, shurl *entities.ShURL) error 
 }
 
 func (s *ShURLService) Delete(ctx context.Context, token string, userID string) error {
-	shURLToDelete, err := s.repo.Get(ctx, token)
-	if err != nil {
-		return err
-	}
-
-	if shURLToDelete.CreatedBy == userID {
-		return s.repo.Delete(ctx, []string{token})
-	}
-
-	return notAllowedError
+	return s.repo.Delete(ctx, []string{token}, userID)
 }
 
 func (s *ShURLService) DeleteMany(ctx context.Context, userID string, shURLsToDeleteTokens []string) error {
@@ -138,7 +129,7 @@ func (s *ShURLService) DeleteMany(ctx context.Context, userID string, shURLsToDe
 	// 	}
 	// }
 
-	return s.repo.Delete(ctx, shURLsToDeleteTokens)
+	return s.repo.Delete(ctx, shURLsToDeleteTokens, userID)
 }
 
 func (s *ShURLService) DeleteManyAsync(ctx context.Context, userID string, shURLsToDeleteTokens []string) error {

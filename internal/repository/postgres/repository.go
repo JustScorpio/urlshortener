@@ -142,8 +142,8 @@ func (r *PostgresShURLRepository) Update(ctx context.Context, shurl *entities.Sh
 	return err
 }
 
-func (r *PostgresShURLRepository) Delete(ctx context.Context, ids []string) error {
-	_, err := r.db.Exec(ctx, "UPDATE shurls SET deleted = true WHERE token = ANY($1)", ids)
+func (r *PostgresShURLRepository) Delete(ctx context.Context, ids []string, userID string) error {
+	_, err := r.db.Exec(ctx, "UPDATE shurls SET deleted = true WHERE token = ANY($1) AND createdby = $2", ids, userID)
 	return err
 }
 

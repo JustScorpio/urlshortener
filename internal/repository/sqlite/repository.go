@@ -144,8 +144,8 @@ func (r *SQLiteShURLRepository) Update(ctx context.Context, shurl *entities.ShUR
 	return err
 }
 
-func (r *SQLiteShURLRepository) Delete(ctx context.Context, ids []string) error {
-	_, err := r.db.ExecContext(ctx, "UPDATE shurls SET deleted = TRUE WHERE token in (?)", strings.Join(ids, ", "))
+func (r *SQLiteShURLRepository) Delete(ctx context.Context, ids []string, userID string) error {
+	_, err := r.db.ExecContext(ctx, "UPDATE shurls SET deleted = TRUE WHERE token IN (?) AND createdby = ?", strings.Join(ids, ", "), userID)
 	return err
 }
 

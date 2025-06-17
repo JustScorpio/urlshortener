@@ -166,7 +166,7 @@ func (r *JSONFileShURLRepository) Update(ctx context.Context, shurl *entities.Sh
 	return errNotFound
 }
 
-func (r *JSONFileShURLRepository) Delete(ctx context.Context, ids []string) error {
+func (r *JSONFileShURLRepository) Delete(ctx context.Context, ids []string, userID string) error {
 	//При работе с json-файлом перезаписывается всё содержимое, поэтому работаем с ShURLEntry чтобы не потерять удалённые записи
 	entries, err := r.GetAllEntries(ctx)
 	if err != nil {
@@ -180,7 +180,7 @@ func (r *JSONFileShURLRepository) Delete(ctx context.Context, ids []string) erro
 				return err
 			}
 
-			if entry.ShURL.Token == id {
+			if entry.ShURL.Token == id && entry.ShURL.CreatedBy == userID {
 				entries[i].Deleted = true
 				break
 			}
