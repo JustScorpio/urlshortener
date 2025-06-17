@@ -59,7 +59,7 @@ func run() error {
 	defer repo.CloseConnection()
 
 	// Инициализация сервисов
-	shURLService := services.NewShURLService(repo, 12)
+	shURLService := services.NewShURLService(repo)
 
 	// Инициализация обработчиков
 	shURLHandler := handlers.NewShURLHandler(shURLService, flagRedirectRouterAddr)
