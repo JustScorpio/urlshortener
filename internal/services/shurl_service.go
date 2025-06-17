@@ -67,7 +67,7 @@ func (s *ShURLService) taskProcessor() {
 			result, err = s.repo.Get(task.Context, token)
 		case TaskCreate:
 			shURL := task.Payload.(*dtos.NewShURL)
-			result, err = s.сreate(task.Context, *shURL)
+			result, err = s.create(task.Context, *shURL)
 		case TaskUpdate:
 			shURL := task.Payload.(*entities.ShURL)
 			err = s.repo.Update(task.Context, shURL)
@@ -144,7 +144,7 @@ func (s *ShURLService) Create(ctx context.Context, newURL dtos.NewShURL) (*entit
 	return res.(*entities.ShURL), err
 }
 
-func (s *ShURLService) сreate(ctx context.Context, newURL dtos.NewShURL) (*entities.ShURL, error) {
+func (s *ShURLService) create(ctx context.Context, newURL dtos.NewShURL) (*entities.ShURL, error) {
 	// Проверка наличие урла в БД
 	existedURLs, err := s.repo.GetAll(ctx)
 	if err != nil {
@@ -182,15 +182,15 @@ func (s *ShURLService) сreate(ctx context.Context, newURL dtos.NewShURL) (*enti
 	return &shurl, nil
 }
 
-func (s *ShURLService) Update(ctx context.Context, shurl *entities.ShURL) error {
-	_, err := s.enqueueTask(Task{
-		Type:    TaskUpdate,
-		Context: ctx,
-		Payload: shurl,
-	})
+// func (s *ShURLService) Update(ctx context.Context, shurl *entities.ShURL) error {
+// 	_, err := s.enqueueTask(Task{
+// 		Type:    TaskUpdate,
+// 		Context: ctx,
+// 		Payload: shurl,
+// 	})
 
-	return err
-}
+// 	return err
+// }
 
 func (s *ShURLService) Delete(ctx context.Context, tokens []string, userID string) error {
 	_, err := s.enqueueTask(Task{
