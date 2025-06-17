@@ -5,28 +5,26 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
-	"sync"
 
 	"github.com/JustScorpio/urlshortener/internal/customerrors"
 	"github.com/JustScorpio/urlshortener/internal/models/entities"
 	"github.com/jackc/pgx/v5"
 )
 
-//go:embed config.json
-var configContent []byte
+//КАК ЗАКОММЕНТИРОВАТЬ КОММЕНТАРИЙ go:embed config.json
+// var configContent []byte
 
-type DBConfiguration struct {
-	Host     string `json:"host"`
-	User     string `json:"user"`
-	Password string `json:"password"`
-	DBName   string `json:"dbname"`
-	Port     string `json:"port"`
-	SslMode  string `json:"sslmode"`
-}
+// type DBConfiguration struct {
+// 	Host     string `json:"host"`
+// 	User     string `json:"user"`
+// 	Password string `json:"password"`
+// 	DBName   string `json:"dbname"`
+// 	Port     string `json:"port"`
+// 	SslMode  string `json:"sslmode"`
+// }
 
 type PostgresShURLRepository struct {
 	db *pgx.Conn
-	mu sync.Mutex
 }
 
 var errGone = customerrors.NewGoneError(errors.New("shurl has been deleted"))
@@ -92,9 +90,6 @@ func NewPostgresShURLRepository(connStr string) (*PostgresShURLRepository, error
 }
 
 func (r *PostgresShURLRepository) GetAll(ctx context.Context) ([]entities.ShURL, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
 	rows, err := r.db.Query(ctx, "SELECT token, longurl, createdby FROM shurls WHERE deleted = false")
 	if err != nil {
 		return nil, err
@@ -108,11 +103,6 @@ func (r *PostgresShURLRepository) GetAll(ctx context.Context) ([]entities.ShURL,
 
 	var shurls []entities.ShURL
 	for rows.Next() {
-		// Проверяем не отменен ли контекст
-		if err := ctx.Err(); err != nil {
-			return nil, err
-		}
-
 		var shurl entities.ShURL
 		err := rows.Scan(&shurl.Token, &shurl.LongURL, &shurl.CreatedBy)
 		if err != nil {
@@ -125,9 +115,6 @@ func (r *PostgresShURLRepository) GetAll(ctx context.Context) ([]entities.ShURL,
 }
 
 func (r *PostgresShURLRepository) Get(ctx context.Context, id string) (*entities.ShURL, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
 	var shurl entities.ShURL
 	var deleted bool
 	err := r.db.QueryRow(ctx, "SELECT token, longurl, createdby, deleted FROM shurls WHERE token = $1", id).Scan(&shurl.Token, &shurl.LongURL, &shurl.CreatedBy, &deleted)
@@ -143,9 +130,6 @@ func (r *PostgresShURLRepository) Get(ctx context.Context, id string) (*entities
 }
 
 func (r *PostgresShURLRepository) Create(ctx context.Context, shurl *entities.ShURL) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
 	_, err := r.db.Exec(ctx, "INSERT INTO shurls (token, longurl, createdBy) VALUES ($1, $2, $3)", shurl.Token, shurl.LongURL, shurl.CreatedBy)
 	if err != nil {
 		return err
@@ -154,32 +138,20 @@ func (r *PostgresShURLRepository) Create(ctx context.Context, shurl *entities.Sh
 }
 
 func (r *PostgresShURLRepository) Update(ctx context.Context, shurl *entities.ShURL) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
 	_, err := r.db.Exec(ctx, "UPDATE shurls SET longurl = $2, createdby = $3 WHERE token = $1", shurl.Token, shurl.LongURL, shurl.CreatedBy)
 	return err
 }
 
 func (r *PostgresShURLRepository) Delete(ctx context.Context, ids []string) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
 	_, err := r.db.Exec(ctx, "UPDATE shurls SET deleted = true WHERE token = ANY($1)", ids)
 	return err
 }
 
 func (r *PostgresShURLRepository) CloseConnection() {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
 	r.db.Close(context.Background())
 }
 
 func (r *PostgresShURLRepository) PingDB() bool {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
 	err := r.db.Ping(context.Background())
 	return err == nil
 }
