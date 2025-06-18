@@ -1,8 +1,9 @@
-package models
+package entities
 
 type ShURL struct {
-	Token   string
-	LongURL string
+	Token     string
+	LongURL   string
+	CreatedBy string
 }
 
 func (su ShURL) GetID() string {

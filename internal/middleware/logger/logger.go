@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/JustScorpio/urlshortener/internal/customcontext"
 	"go.uber.org/zap"
 )
 
@@ -48,6 +49,8 @@ func LoggingMiddleware(logger *zap.Logger) func(http.Handler) http.Handler {
 			// Логируем после обработки
 			duration := time.Since(start)
 
+			userID := customcontext.GetUserID(r.Context())
+
 			logger.Info("HTTP request",
 				zap.String("method", r.Method),
 				zap.String("path", r.URL.Path),
@@ -57,6 +60,7 @@ func LoggingMiddleware(logger *zap.Logger) func(http.Handler) http.Handler {
 				zap.Int("status", rw.status),
 				zap.Int("size", rw.size),
 				zap.String("body", rw.body),
+				zap.String("auth-token", userID),
 			)
 		})
 	}

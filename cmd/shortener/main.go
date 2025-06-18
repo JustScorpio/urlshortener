@@ -7,9 +7,10 @@ import (
 	"os"
 
 	"github.com/JustScorpio/urlshortener/internal/handlers"
+	"github.com/JustScorpio/urlshortener/internal/middleware/auth"
 	"github.com/JustScorpio/urlshortener/internal/middleware/gzipencoder"
 	"github.com/JustScorpio/urlshortener/internal/middleware/logger"
-	"github.com/JustScorpio/urlshortener/internal/models"
+	"github.com/JustScorpio/urlshortener/internal/models/entities"
 	"github.com/JustScorpio/urlshortener/internal/repository"
 	"github.com/JustScorpio/urlshortener/internal/repository/jsonfile"
 	"github.com/JustScorpio/urlshortener/internal/repository/postgres"
@@ -43,7 +44,7 @@ func run() error {
 	}
 
 	// Инициализация репозиториев с базой данных
-	var repo repository.IRepository[models.ShURL]
+	var repo repository.IRepository[entities.ShURL]
 	var err error
 	if flagDBConnStr != "" {
 		repo, err = postgres.NewPostgresShURLRepository(flagDBConnStr)
@@ -87,9 +88,12 @@ func run() error {
 	// Сравниваем нормализованные адреса. Если адрес один - запускаем то и то на одном порту
 	if flagShortenerRouterAddr == flagRedirectRouterAddr {
 		r := chi.NewRouter()
+		r.Use(auth.AuthMiddleware())
 		r.Use(logger.LoggingMiddleware(zapLogger))
 		r.Use(gzipencoder.GZIPEncodingMiddleware())
 		r.Get("/ping", pingFunc)
+		r.Get("/api/user/urls", shURLHandler.GetShURLsByUserID)
+		r.Delete("/api/user/urls", shURLHandler.DeleteMany)
 		r.Get("/{token}", shURLHandler.GetFullURL)
 		r.Post("/api/shorten", shURLHandler.ShortenURL)
 		r.Post("/api/shorten/batch", shURLHandler.ShortenURLsBatch)
@@ -100,9 +104,12 @@ func run() error {
 
 	// Если разные - разные сервера для разных хэндлеров в разных горутинах
 	redirectRouter := chi.NewRouter()
+	redirectRouter.Use(auth.AuthMiddleware()) //Нужно при обращении к /api/user/urls (GET и DELETE)
 	redirectRouter.Use(logger.LoggingMiddleware(zapLogger))
 	redirectRouter.Use(gzipencoder.GZIPEncodingMiddleware())
 	redirectRouter.Get("/ping", pingFunc) //Дублируется в обоих роутерах
+	redirectRouter.Get("/api/user/urls", shURLHandler.GetShURLsByUserID)
+	redirectRouter.Delete("/api/user/urls", shURLHandler.DeleteMany)
 	redirectRouter.Get("/{token}", shURLHandler.GetFullURL)
 
 	shortenerRouter := chi.NewRouter()
