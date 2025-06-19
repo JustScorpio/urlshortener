@@ -7,7 +7,9 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/JustScorpio/urlshortener/internal/customcontext"
 	"github.com/JustScorpio/urlshortener/internal/customerrors"
+	"github.com/JustScorpio/urlshortener/internal/models/dtos"
 	"github.com/JustScorpio/urlshortener/internal/services"
 )
 
@@ -91,8 +93,13 @@ func (h *ShURLHandler) ShortenURL(w http.ResponseWriter, r *http.Request) {
 		longURL = string(body)
 	}
 
+	userID := customcontext.GetUserID(r.Context())
+
 	//Создаём shurl
-	shurl, err := h.service.Create(r.Context(), longURL)
+	shurl, err := h.service.Create(r.Context(), dtos.NewShURL{
+		LongURL:   longURL,
+		CreatedBy: userID,
+	})
 
 	//Определяем статус код
 	statusCode := http.StatusCreated
@@ -182,9 +189,14 @@ func (h *ShURLHandler) ShortenURLsBatch(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	userID := customcontext.GetUserID(r.Context())
+
 	for _, reqItem := range reqData {
 		longURL := reqItem.URL
-		shurl, err := h.service.Create(r.Context(), longURL)
+		shurl, err := h.service.Create(r.Context(), dtos.NewShURL{
+			LongURL:   longURL,
+			CreatedBy: userID,
+		})
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -204,5 +216,63 @@ func (h *ShURLHandler) ShortenURLsBatch(w http.ResponseWriter, r *http.Request) 
 
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
+	w.Write(jsonData)
+}
+
+// Получить полный адрес
+func (h *ShURLHandler) GetShURLsByUserID(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		// разрешаем только Get-запросы
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	//Не предусмотрено тестами
+	//Только Accept: JSON
+	// contentType := r.Header.Get("Accept")
+	// if contentType != "application/json" {
+	// 	w.WriteHeader(http.StatusBadRequest)
+	// 	return
+	// }
+
+	userID := customcontext.GetUserID(r.Context())
+	if userID == "" {
+		// UserID в куке пуст
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	// Получение сущности из сервиса
+	shURLs, err := h.service.GetAllShURLsByUserID(r.Context(), userID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if len(shURLs) == 0 {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	type respItem struct {
+		ShortURL    string `json:"short_url"`
+		OriginalURL string `json:"original_url"`
+	}
+	var respData []respItem
+
+	for _, shURL := range shURLs {
+		respData = append(respData, respItem{
+			ShortURL:    "http://" + h.shURLBaseAddr + "/" + shURL.Token,
+			OriginalURL: shURL.LongURL,
+		})
+	}
+
+	jsonData, err := json.Marshal(respData)
+	if err != nil {
+		return
+	}
+
+	w.Header().Add("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 	w.Write(jsonData)
 }
