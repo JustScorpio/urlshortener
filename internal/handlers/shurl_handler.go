@@ -7,7 +7,9 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/JustScorpio/urlshortener/internal/customcontext"
 	"github.com/JustScorpio/urlshortener/internal/customerrors"
+	"github.com/JustScorpio/urlshortener/internal/models/dtos"
 	"github.com/JustScorpio/urlshortener/internal/services"
 )
 
@@ -42,7 +44,15 @@ func (h *ShURLHandler) GetFullURL(w http.ResponseWriter, r *http.Request) {
 	// Получение сущности из сервиса
 	shURL, err := h.service.Get(r.Context(), token)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		var statusCode = http.StatusInternalServerError
+
+		//Если запрашивается shURL c deleted = true, вернётся ошибка с кодом 410
+		var httpErr *customerrors.HTTPError
+		if errors.As(err, &httpErr) {
+			statusCode = httpErr.Code
+		}
+
+		http.Error(w, err.Error(), statusCode)
 		return
 	}
 
@@ -91,8 +101,13 @@ func (h *ShURLHandler) ShortenURL(w http.ResponseWriter, r *http.Request) {
 		longURL = string(body)
 	}
 
+	userID := customcontext.GetUserID(r.Context())
+
 	//Создаём shurl
-	shurl, err := h.service.Create(r.Context(), longURL)
+	shurl, err := h.service.Create(r.Context(), dtos.NewShURL{
+		LongURL:   longURL,
+		CreatedBy: userID,
+	})
 
 	//Определяем статус код
 	statusCode := http.StatusCreated
@@ -182,9 +197,14 @@ func (h *ShURLHandler) ShortenURLsBatch(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	userID := customcontext.GetUserID(r.Context())
+
 	for _, reqItem := range reqData {
 		longURL := reqItem.URL
-		shurl, err := h.service.Create(r.Context(), longURL)
+		shurl, err := h.service.Create(r.Context(), dtos.NewShURL{
+			LongURL:   longURL,
+			CreatedBy: userID,
+		})
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -205,4 +225,110 @@ func (h *ShURLHandler) ShortenURLsBatch(w http.ResponseWriter, r *http.Request) 
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	w.Write(jsonData)
+}
+
+// Получить полный адрес
+func (h *ShURLHandler) GetShURLsByUserID(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		// разрешаем только Get-запросы
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	//Не предусмотрено тестами
+	//Только Accept: JSON
+	// contentType := r.Header.Get("Accept")
+	// if contentType != "application/json" {
+	// 	w.WriteHeader(http.StatusBadRequest)
+	// 	return
+	// }
+
+	userID := customcontext.GetUserID(r.Context())
+	if userID == "" {
+		// UserID в куке пуст
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	// Получение сущностей из сервиса
+	shURLs, err := h.service.GetAllShURLsByUserID(r.Context(), userID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if len(shURLs) == 0 {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	type respItem struct {
+		ShortURL    string `json:"short_url"`
+		OriginalURL string `json:"original_url"`
+	}
+	var respData []respItem
+
+	for _, shURL := range shURLs {
+		respData = append(respData, respItem{
+			ShortURL:    "http://" + h.shURLBaseAddr + "/" + shURL.Token,
+			OriginalURL: shURL.LongURL,
+		})
+	}
+
+	jsonData, err := json.Marshal(respData)
+	if err != nil {
+		return
+	}
+
+	w.Header().Add("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(jsonData)
+}
+
+// Удалить ShURLы Пользователя
+func (h *ShURLHandler) DeleteMany(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete {
+		// разрешаем только Delete-запросы
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	//Читаем тело запроса
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, "Failed to read request body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+
+	//Если Body пуст
+	if len(body) == 0 {
+		http.Error(w, "Body is empty", http.StatusBadRequest)
+		return
+	}
+
+	var tokens []string
+
+	//Извлекаем токены из JSON
+	if err = json.Unmarshal(body, &tokens); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	userID := customcontext.GetUserID(r.Context())
+	if userID == "" {
+		// UserID в куке пуст
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	// Удаление сущностей
+	err = h.service.Delete(r.Context(), tokens, userID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Add("Content-Type", "application/json")
+	w.WriteHeader(http.StatusAccepted)
 }

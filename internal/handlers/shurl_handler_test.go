@@ -3,14 +3,12 @@ package handlers
 import (
 	"context"
 	"errors"
-	"maps"
 	"net/http"
 	"net/http/httptest"
-	"slices"
 	"strings"
 	"testing"
 
-	"github.com/JustScorpio/urlshortener/internal/models"
+	"github.com/JustScorpio/urlshortener/internal/models/entities"
 	"github.com/JustScorpio/urlshortener/internal/services"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -19,46 +17,61 @@ import (
 
 type MockRepository struct {
 	mock.Mock
-	db map[string]models.ShURL
+	db map[string]ShURLEntry
 }
 
-func (r *MockRepository) GetAll(ctx context.Context) ([]models.ShURL, error) {
-	return slices.Collect(maps.Values(r.db)), nil
+type ShURLEntry struct {
+	ShURL   entities.ShURL
+	Deleted bool
 }
 
-func (r *MockRepository) Get(ctx context.Context, id string) (*models.ShURL, error) {
+func (r *MockRepository) GetAll(ctx context.Context) ([]entities.ShURL, error) {
+	var result []entities.ShURL
+	for _, entry := range r.db {
+		if !entry.Deleted {
+			result = append(result, entry.ShURL)
+		}
+	}
+
+	return result, nil
+}
+
+func (r *MockRepository) Get(ctx context.Context, id string) (*entities.ShURL, error) {
 	val, exists := r.db[id]
 	if !exists {
 		return nil, errors.New("Entry not found")
 	}
 
-	return &val, nil
+	return &val.ShURL, nil
 }
 
-func (r *MockRepository) Create(ctx context.Context, shurl *models.ShURL) error {
-	if _, exists := r.db[shurl.Token]; exists {
+func (r *MockRepository) Create(ctx context.Context, shurl *entities.ShURL) error {
+	if _, exists := r.db[shurl.Token]; exists && !r.db[shurl.Token].Deleted {
 		return errors.New("Entry with such id already exists")
 	}
 
-	r.db[shurl.Token] = *shurl
+	newEntry := ShURLEntry{ShURL: *shurl, Deleted: false}
+	r.db[shurl.Token] = newEntry
 	return nil
 }
 
-func (r *MockRepository) Update(ctx context.Context, shurl *models.ShURL) error {
-	if _, exists := r.db[shurl.Token]; !exists {
+func (r *MockRepository) Update(ctx context.Context, shurl *entities.ShURL) error {
+	if _, exists := r.db[shurl.Token]; !exists && !r.db[shurl.Token].Deleted {
 		return nil
 	}
 
-	r.db[shurl.Token] = *shurl
+	r.db[shurl.Token] = ShURLEntry{ShURL: *shurl, Deleted: false}
 	return nil
 }
 
-func (r *MockRepository) Delete(ctx context.Context, id string) error {
-	if _, exists := r.db[id]; !exists {
-		return nil
+func (r *MockRepository) Delete(ctx context.Context, ids []string, userID string) error {
+	for _, id := range ids {
+		entry := r.db[id]
+		if entry.ShURL.CreatedBy == userID {
+			r.db[id] = ShURLEntry{ShURL: r.db[id].ShURL, Deleted: true}
+		}
 	}
 
-	delete(r.db, id)
 	return nil
 }
 
@@ -77,15 +90,15 @@ func TestShURLHandler_GetFullURL(t *testing.T) {
 		location   string
 	}
 
-	shurl1 := models.ShURL{Token: "acbdefgh", LongURL: "https://practicum.yandex.ru/"}
-	shurl2 := models.ShURL{Token: "bcdefghi", LongURL: "https://www.google.com/"}
-	shurl3 := models.ShURL{Token: "cdefghij", LongURL: "https://vk.com/"}
-	shurls := map[string]models.ShURL{
-		shurl1.Token: shurl1,
-		shurl2.Token: shurl2,
-		shurl3.Token: shurl3,
+	shurl1 := entities.ShURL{Token: "acbdefgh", LongURL: "https://practicum.yandex.ru/"}
+	shurl2 := entities.ShURL{Token: "bcdefghi", LongURL: "https://www.google.com/"}
+	shurl3 := entities.ShURL{Token: "cdefghij", LongURL: "https://vk.com/"}
+	shurlsEntries := map[string]ShURLEntry{
+		shurl1.Token: {shurl1, false},
+		shurl2.Token: {shurl2, false},
+		shurl3.Token: {shurl3, false},
 	}
-	mockRepo := MockRepository{db: shurls}
+	mockRepo := MockRepository{db: shurlsEntries}
 	mockService := services.NewShURLService(&mockRepo)
 	mockHandler := NewShURLHandler(mockService, "localhost:8080")
 
@@ -160,15 +173,15 @@ func TestShURLHandler_ShortenURL(t *testing.T) {
 		token      string
 	}
 
-	shurl1 := models.ShURL{Token: "acbdefgh", LongURL: "https://practicum.yandex.ru/"}
-	shurl2 := models.ShURL{Token: "bcdefghi", LongURL: "https://www.google.com/"}
-	shurl3 := models.ShURL{Token: "cdefghij", LongURL: "https://vk.com/"}
-	shurls := map[string]models.ShURL{
-		shurl1.Token: shurl1,
-		shurl2.Token: shurl2,
-		shurl3.Token: shurl3,
+	shurl1 := entities.ShURL{Token: "acbdefgh", LongURL: "https://practicum.yandex.ru/"}
+	shurl2 := entities.ShURL{Token: "bcdefghi", LongURL: "https://www.google.com/"}
+	shurl3 := entities.ShURL{Token: "cdefghij", LongURL: "https://vk.com/"}
+	shurlsEntries := map[string]ShURLEntry{
+		shurl1.Token: {shurl1, false},
+		shurl2.Token: {shurl2, false},
+		shurl3.Token: {shurl3, false},
 	}
-	mockRepo := MockRepository{db: shurls}
+	mockRepo := MockRepository{db: shurlsEntries}
 	mockService := services.NewShURLService(&mockRepo)
 	mockHandler := NewShURLHandler(mockService, "localhost:8080")
 
@@ -239,8 +252,8 @@ func TestShURLHandler_ShortenURL(t *testing.T) {
 			if result.StatusCode == http.StatusCreated {
 				//Проверить что в map есть один и только один заданный урл
 				count := 0
-				for entry := range shurls {
-					if shurls[entry].LongURL == tt.args.url {
+				for entry := range shurlsEntries {
+					if shurlsEntries[entry].ShURL.LongURL == tt.args.url {
 						count++
 					}
 				}
