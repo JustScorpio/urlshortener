@@ -16,6 +16,8 @@ import (
 	"github.com/JustScorpio/urlshortener/internal/repository/postgres"
 	"github.com/JustScorpio/urlshortener/internal/services"
 
+	_ "net/http/pprof"
+
 	"github.com/go-chi/chi"
 )
 
@@ -24,9 +26,17 @@ func main() {
 	// обрабатываем аргументы командной строки
 	parseFlags()
 
-	if err := run(); err != nil {
-		log.Fatal(err)
-	}
+	//Основное приложение
+	go func() {
+		if err := run(); err != nil {
+			log.Fatal(err)
+		}
+	}()
+
+	//Пустой сервер в отдельной горутине без хэндлеров для pprof
+	go func() {
+		http.ListenAndServe("localhost:6060", nil)
+	}()
 }
 
 // функция run будет полезна при инициализации зависимостей сервера перед запуском

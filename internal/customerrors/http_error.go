@@ -41,3 +41,10 @@ func NewGoneError(err error) error {
 		Err:  err,
 	}
 }
+
+func NewNotFoundError(err error) error {
+	return &HTTPError{
+		Code: http.StatusNotFound,
+		Err:  err,
+	}
+}
