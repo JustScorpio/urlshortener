@@ -27,16 +27,16 @@ func main() {
 	parseFlags()
 
 	//Основное приложение
-	go func() {
-		if err := run(); err != nil {
-			log.Fatal(err)
-		}
-	}()
+	// go func() {
+	if err := run(); err != nil {
+		log.Fatal(err)
+	}
+	// }()
 
 	//Пустой сервер в отдельной горутине без хэндлеров для pprof
-	go func() {
-		http.ListenAndServe("localhost:6060", nil)
-	}()
+	// go func() {
+	// 	http.ListenAndServe("localhost:6060", nil)
+	// }()
 }
 
 // функция run будет полезна при инициализации зависимостей сервера перед запуском
