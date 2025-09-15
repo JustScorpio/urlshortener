@@ -3,6 +3,7 @@ package inmemory
 import (
 	"context"
 	"errors"
+	"reflect"
 	"sync"
 
 	"github.com/JustScorpio/urlshortener/internal/customerrors"
@@ -14,15 +15,18 @@ var errAlreadyExists = errors.New("already exists")
 var errGone = customerrors.NewGoneError(errors.New("shurl has been deleted"))
 
 type InMemoryRepository struct {
-	mu            sync.RWMutex
-	shURLs        map[string]entities.ShURL
-	deletedShURLs map[string]entities.ShURL
+	mu     sync.RWMutex
+	shURLs map[string]ShURLEntry
+}
+
+type ShURLEntry struct {
+	ShURL   entities.ShURL
+	Deleted bool
 }
 
 func NewInMemoryRepository() *InMemoryRepository {
 	return &InMemoryRepository{
-		shURLs:        make(map[string]entities.ShURL),
-		deletedShURLs: make(map[string]entities.ShURL),
+		shURLs: make(map[string]ShURLEntry),
 	}
 }
 
@@ -30,26 +34,44 @@ func (m *InMemoryRepository) GetAll(ctx context.Context) ([]entities.ShURL, erro
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	result := make([]entities.ShURL, 0, len(m.shURLs))
-	for _, shURL := range m.shURLs {
-		result = append(result, shURL)
+	shurls := make([]entities.ShURL, 0, len(m.shURLs))
+	for _, entry := range m.shURLs {
+		if !entry.Deleted {
+			shurls = append(shurls, entry.ShURL)
+		}
 	}
 
-	return result, nil
+	return shurls, nil
 }
 
-func (m *InMemoryRepository) Get(ctx context.Context, token string) (*entities.ShURL, error) {
+func (m *InMemoryRepository) GetByCondition(ctx context.Context, key string, value string) ([]entities.ShURL, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	if shURL, exists := m.shURLs[token]; exists {
-		return &shURL, nil
+	//Через рефлексию проверяем удовлетворение условия (допустимо только потому что все поля ShURL строковые)
+	shurls := make([]entities.ShURL, 0, len(m.shURLs))
+	for _, entry := range m.shURLs {
+		val := reflect.ValueOf(entry.ShURL)
+		if !entry.Deleted && val.FieldByName(key).String() == value {
+			shurls = append(shurls, entry.ShURL)
+		}
 	}
 
-	if _, exists := m.deletedShURLs[token]; exists {
-		return nil, errGone
-	}
+	return shurls, nil
+}
 
+func (m *InMemoryRepository) GetById(ctx context.Context, token string) (*entities.ShURL, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if entry, exists := m.shURLs[token]; exists {
+		if !entry.Deleted {
+			return &entry.ShURL, nil
+		} else {
+			return nil, errGone
+		}
+
+	}
 	return nil, errNotFound
 }
 
@@ -57,11 +79,11 @@ func (m *InMemoryRepository) Create(ctx context.Context, shURL *entities.ShURL) 
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if _, exists := m.shURLs[shURL.Token]; exists {
+	if foundShURL, exists := m.shURLs[shURL.Token]; exists && !foundShURL.Deleted {
 		return errAlreadyExists
 	}
 
-	m.shURLs[shURL.Token] = *shURL
+	m.shURLs[shURL.Token] = ShURLEntry{*shURL, false}
 	return nil
 }
 
@@ -69,8 +91,8 @@ func (m *InMemoryRepository) Update(ctx context.Context, shURL *entities.ShURL) 
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if _, exists := m.shURLs[shURL.Token]; exists {
-		m.shURLs[shURL.Token] = *shURL
+	if foundShURL, exists := m.shURLs[shURL.Token]; exists {
+		m.shURLs[shURL.Token] = ShURLEntry{*shURL, foundShURL.Deleted}
 		return nil
 	} else {
 		return errNotFound
@@ -82,9 +104,8 @@ func (m *InMemoryRepository) Delete(ctx context.Context, tokens []string, userID
 	defer m.mu.Unlock()
 
 	for _, token := range tokens {
-		if shURL, exists := m.shURLs[token]; exists && shURL.CreatedBy == userID {
-			m.deletedShURLs[token] = shURL
-			delete(m.shURLs, token)
+		if entry, exists := m.shURLs[token]; exists && entry.ShURL.CreatedBy == userID {
+			m.shURLs[token] = ShURLEntry{entry.ShURL, true}
 		}
 	}
 	return nil

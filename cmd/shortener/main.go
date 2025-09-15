@@ -16,8 +16,6 @@ import (
 	"github.com/JustScorpio/urlshortener/internal/repository/postgres"
 	"github.com/JustScorpio/urlshortener/internal/services"
 
-	_ "net/http/pprof"
-
 	"github.com/go-chi/chi"
 )
 

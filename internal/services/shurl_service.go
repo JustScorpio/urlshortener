@@ -21,11 +21,11 @@ type TaskType int
 
 const (
 	TaskGetAll TaskType = iota
-	TaskGet
+	TaskGetByCondition
+	TaskGetById
 	TaskCreate
 	TaskUpdate
 	TaskDelete
-	TaskGetByUserID
 )
 
 type Task struct {
@@ -33,6 +33,11 @@ type Task struct {
 	Context  context.Context
 	Payload  interface{}
 	ResultCh chan TaskResult
+}
+
+type TaskGetByConditionPayload struct {
+	Key   string
+	Value string
 }
 
 type TaskResult struct {
@@ -62,9 +67,12 @@ func (s *ShURLService) taskProcessor() {
 		switch task.Type {
 		case TaskGetAll:
 			result, err = s.repo.GetAll(task.Context)
-		case TaskGet:
+		case TaskGetByCondition:
+			kayValuePair := task.Payload.(TaskGetByConditionPayload)
+			result, err = s.repo.GetByCondition(task.Context, kayValuePair.Key, kayValuePair.Value)
+		case TaskGetById:
 			token := task.Payload.(string)
-			result, err = s.repo.Get(task.Context, token)
+			result, err = s.repo.GetById(task.Context, token)
 		case TaskCreate:
 			shURL := task.Payload.(*dtos.NewShURL)
 			result, err = s.create(task.Context, *shURL)
@@ -77,14 +85,11 @@ func (s *ShURLService) taskProcessor() {
 				userID string
 			})
 			err = s.repo.Delete(task.Context, payload.tokens, payload.userID)
-		case TaskGetByUserID:
-			userID := task.Payload.(string)
-			result, err = s.getAllByUserID(task.Context, userID)
 		}
 
 		if task.ResultCh != nil {
 			switch task.Type {
-			case TaskGetAll, TaskGet, TaskGetByUserID, TaskCreate:
+			case TaskGetAll, TaskGetByCondition, TaskGetById, TaskCreate:
 				task.ResultCh <- TaskResult{
 					Result: result,
 					Err:    err,
@@ -124,9 +129,19 @@ func (s *ShURLService) GetAll(ctx context.Context) ([]entities.ShURL, error) {
 	return res.([]entities.ShURL), err
 }
 
-func (s *ShURLService) Get(ctx context.Context, token string) (*entities.ShURL, error) {
+func (s *ShURLService) GetByCondition(ctx context.Context, key string, value string) ([]entities.ShURL, error) {
 	res, err := s.enqueueTask(Task{
-		Type:    TaskGet,
+		Type:    TaskGetByCondition,
+		Context: ctx,
+		Payload: TaskGetByConditionPayload{key, value},
+	})
+
+	return res.([]entities.ShURL), err
+}
+
+func (s *ShURLService) GetById(ctx context.Context, token string) (*entities.ShURL, error) {
+	res, err := s.enqueueTask(Task{
+		Type:    TaskGetById,
 		Context: ctx,
 		Payload: token,
 	})
@@ -146,23 +161,15 @@ func (s *ShURLService) Create(ctx context.Context, newURL dtos.NewShURL) (*entit
 
 func (s *ShURLService) create(ctx context.Context, newURL dtos.NewShURL) (*entities.ShURL, error) {
 	// Проверка наличие урла в БД
-	existedURLs, err := s.repo.GetAll(ctx)
+	existedURLs, err := s.repo.GetByCondition(ctx, entities.ShURLLongURLFieldName, newURL.LongURL)
 	if err != nil {
 		return nil, err
 	}
 
-	longURL := newURL.LongURL
-
+	//Если есть дубли - отработает один раз только для первого
 	for _, existedURL := range existedURLs {
-		// Проверяем не отменен ли контекст
-		if err := ctx.Err(); err != nil {
-			return nil, err
-		}
-
 		//TODO: если разные пользователи укоротили один урл, дубль должен писаться? По идее да
-		if existedURL.LongURL == longURL {
-			return &existedURL, alreadyExistsError
-		}
+		return &existedURL, alreadyExistsError
 	}
 
 	//Добавление shurl в БД
@@ -170,7 +177,7 @@ func (s *ShURLService) create(ctx context.Context, newURL dtos.NewShURL) (*entit
 	token := generate() // Пример: "EwHXdJfB"
 	shurl := entities.ShURL{
 		Token:     token,
-		LongURL:   longURL,
+		LongURL:   newURL.LongURL,
 		CreatedBy: newURL.CreatedBy,
 	}
 
@@ -203,30 +210,4 @@ func (s *ShURLService) Delete(ctx context.Context, tokens []string, userID strin
 	})
 
 	return err
-}
-
-func (s *ShURLService) GetAllShURLsByUserID(ctx context.Context, userID string) ([]entities.ShURL, error) {
-	res, err := s.enqueueTask(Task{
-		Type:    TaskGetByUserID,
-		Context: ctx,
-		Payload: userID,
-	})
-
-	return res.([]entities.ShURL), err
-}
-
-func (s *ShURLService) getAllByUserID(ctx context.Context, userID string) ([]entities.ShURL, error) {
-	allShURLs, err := s.repo.GetAll(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	var result []entities.ShURL
-	for _, shURL := range allShURLs {
-		if shURL.CreatedBy == userID {
-			result = append(result, shURL)
-		}
-	}
-
-	return result, nil
 }

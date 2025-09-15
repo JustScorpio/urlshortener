@@ -10,6 +10,7 @@ import (
 	"github.com/JustScorpio/urlshortener/internal/customcontext"
 	"github.com/JustScorpio/urlshortener/internal/customerrors"
 	"github.com/JustScorpio/urlshortener/internal/models/dtos"
+	"github.com/JustScorpio/urlshortener/internal/models/entities"
 	"github.com/JustScorpio/urlshortener/internal/services"
 )
 
@@ -42,7 +43,7 @@ func (h *ShURLHandler) GetFullURL(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Получение сущности из сервиса
-	shURL, err := h.service.Get(r.Context(), token)
+	shURL, err := h.service.GetById(r.Context(), token)
 	if err != nil {
 		var statusCode = http.StatusInternalServerError
 
@@ -251,7 +252,7 @@ func (h *ShURLHandler) GetShURLsByUserID(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Получение сущностей из сервиса
-	shURLs, err := h.service.GetAllShURLsByUserID(r.Context(), userID)
+	shURLs, err := h.service.GetByCondition(r.Context(), entities.ShURLCreatedByFieldName, userID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

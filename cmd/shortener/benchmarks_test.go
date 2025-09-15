@@ -10,6 +10,7 @@ import (
 	_ "net/http/pprof"
 
 	"github.com/JustScorpio/urlshortener/internal/models/dtos"
+	"github.com/JustScorpio/urlshortener/internal/models/entities"
 	"github.com/JustScorpio/urlshortener/internal/repository/inmemory"
 	"github.com/JustScorpio/urlshortener/internal/services"
 )
@@ -58,7 +59,7 @@ func BenchmarkShURLService_Get(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		service.Get(ctx, shURL.Token)
+		service.GetById(ctx, shURL.Token)
 	}
 
 	b.StopTimer()
@@ -88,7 +89,7 @@ func BenchmarkShURLService_GetAllByUserID(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		service.GetAllShURLsByUserID(ctx, "user1")
+		service.GetByCondition(ctx, entities.ShURLCreatedByFieldName, "user1")
 	}
 
 	b.StopTimer()

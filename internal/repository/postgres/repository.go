@@ -114,7 +114,32 @@ func (r *PostgresShURLRepository) GetAll(ctx context.Context) ([]entities.ShURL,
 	return shurls, nil
 }
 
-func (r *PostgresShURLRepository) Get(ctx context.Context, id string) (*entities.ShURL, error) {
+func (r *PostgresShURLRepository) GetByCondition(ctx context.Context, key string, value string) ([]entities.ShURL, error) {
+	rows, err := r.db.Query(ctx, "SELECT token, longurl, createdby FROM shurls WHERE deleted = false AND $1 = $2", key, value)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	var shurls []entities.ShURL
+	for rows.Next() {
+		var shurl entities.ShURL
+		err := rows.Scan(&shurl.Token, &shurl.LongURL, &shurl.CreatedBy)
+		if err != nil {
+			return nil, err
+		}
+		shurls = append(shurls, shurl)
+	}
+
+	return shurls, nil
+}
+
+func (r *PostgresShURLRepository) GetById(ctx context.Context, id string) (*entities.ShURL, error) {
 	var shurl entities.ShURL
 	var deleted bool
 	err := r.db.QueryRow(ctx, "SELECT token, longurl, createdby, deleted FROM shurls WHERE token = $1", id).Scan(&shurl.Token, &shurl.LongURL, &shurl.CreatedBy, &deleted)

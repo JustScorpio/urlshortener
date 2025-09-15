@@ -7,15 +7,16 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 
 	"github.com/JustScorpio/urlshortener/internal/customerrors"
 	"github.com/JustScorpio/urlshortener/internal/models/entities"
 	_ "modernc.org/sqlite"
 )
 
-var errNotFound = errors.New("not found")
-var errAlreadyExists = errors.New("already exists")
+var errNotFound = customerrors.NewNotFoundError(errors.New("not found"))
 var errGone = customerrors.NewGoneError(errors.New("shurl has been deleted"))
+var errAlreadyExists = errors.New("already exists")
 
 type JSONFileShURLRepository struct {
 	filePath string
@@ -86,7 +87,25 @@ func (r *JSONFileShURLRepository) GetAll(ctx context.Context) ([]entities.ShURL,
 	return shurls, nil
 }
 
-func (r *JSONFileShURLRepository) Get(ctx context.Context, id string) (*entities.ShURL, error) {
+func (r *JSONFileShURLRepository) GetByCondition(ctx context.Context, key string, value string) ([]entities.ShURL, error) {
+	var entries, err = r.GetAllEntries(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	//Через рефлексию проверяем удовлетворение условия (допустимо только потому что все поля ShURL строковые)
+	var shurls []entities.ShURL
+	for _, entry := range entries {
+		val := reflect.ValueOf(entry.ShURL)
+		if !entry.Deleted && val.FieldByName(key).String() == value {
+			shurls = append(shurls, entry.ShURL)
+		}
+	}
+
+	return shurls, nil
+}
+
+func (r *JSONFileShURLRepository) GetById(ctx context.Context, id string) (*entities.ShURL, error) {
 	entries, err := r.GetAllEntries(ctx)
 	if err != nil {
 		return nil, err

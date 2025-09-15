@@ -102,7 +102,36 @@ func (r *SQLiteShURLRepository) GetAll(ctx context.Context) ([]entities.ShURL, e
 	return shurls, nil
 }
 
-func (r *SQLiteShURLRepository) Get(ctx context.Context, id string) (*entities.ShURL, error) {
+func (r *SQLiteShURLRepository) GetByCondition(ctx context.Context, key string, value string) ([]entities.ShURL, error) {
+	rows, err := r.db.QueryContext(ctx, "SELECT token, longurl, createdby FROM shurls WHERE deleted = FALSE And ? = ?", key, value)
+	if err != nil {
+		return nil, err
+	}
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	var shurls []entities.ShURL
+	for rows.Next() {
+		// Проверяем не отменен ли контекст
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+
+		var shurl entities.ShURL
+		err := rows.Scan(&shurl.Token, &shurl.LongURL, &shurl.CreatedBy)
+		if err != nil {
+			return nil, err
+		}
+		shurls = append(shurls, shurl)
+	}
+
+	return shurls, nil
+}
+
+func (r *SQLiteShURLRepository) GetById(ctx context.Context, id string) (*entities.ShURL, error) {
 	var shurl entities.ShURL
 	var deleted bool
 	err := r.db.QueryRowContext(

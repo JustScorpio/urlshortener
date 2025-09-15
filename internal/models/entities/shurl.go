@@ -6,6 +6,12 @@ type ShURL struct {
 	CreatedBy string
 }
 
+const (
+	ShURLTokenFieldName     = "Token"
+	ShURLLongURLFieldName   = "LongURL"
+	ShURLCreatedByFieldName = "CreatedBy"
+)
+
 func (su ShURL) GetID() string {
 	return su.Token
 }
