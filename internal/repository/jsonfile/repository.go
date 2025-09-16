@@ -149,7 +149,7 @@ func (r *JSONFileShURLRepository) Create(ctx context.Context, shurl *entities.Sh
 			return err
 		}
 
-		if entry.ShURL.Token == shurl.Token && !entry.Deleted {
+		if entry.ShURL.LongURL == shurl.LongURL && !entry.Deleted {
 			return errAlreadyExists
 		}
 	}

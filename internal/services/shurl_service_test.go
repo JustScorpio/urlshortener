@@ -174,11 +174,9 @@ func TestShURLService_GetByCondition(t *testing.T) {
 		{LongURL: "https://example4.com", CreatedBy: "user3"},
 	}
 
-	var createdURLs []entities.ShURL
 	for _, url := range urls {
-		shURL, err := service.Create(ctx, url)
+		_, err := service.Create(ctx, url)
 		require.NoError(t, err)
-		createdURLs = append(createdURLs, *shURL)
 	}
 
 	t.Run("get by CreatedBy field - user1", func(t *testing.T) {
