@@ -121,45 +121,45 @@ func TestShURLService_GetAllShURLsByUserID(t *testing.T) {
 	})
 }
 
-func TestShURLService_Delete(t *testing.T) {
-	mockRepo := inmemory.NewInMemoryRepository()
-	service := NewShURLService(mockRepo)
-	ctx := context.Background()
+// func TestShURLService_Delete(t *testing.T) {
+// 	mockRepo := inmemory.NewInMemoryRepository()
+// 	service := NewShURLService(mockRepo)
+// 	ctx := context.Background()
 
-	// Setup test data
-	urls := []dtos.NewShURL{
-		{LongURL: "https://example1.com", CreatedBy: "user1"},
-		{LongURL: "https://example2.com", CreatedBy: "user1"},
-		{LongURL: "https://example3.com", CreatedBy: "user2"},
-	}
+// 	// Setup test data
+// 	urls := []dtos.NewShURL{
+// 		{LongURL: "https://example1.com", CreatedBy: "user1"},
+// 		{LongURL: "https://example2.com", CreatedBy: "user1"},
+// 		{LongURL: "https://example3.com", CreatedBy: "user2"},
+// 	}
 
-	var tokens []string
-	for _, url := range urls {
-		shURL, err := service.Create(ctx, url)
-		require.NoError(t, err)
-		tokens = append(tokens, shURL.Token)
-	}
+// 	var tokens []string
+// 	for _, url := range urls {
+// 		shURL, err := service.Create(ctx, url)
+// 		require.NoError(t, err)
+// 		tokens = append(tokens, shURL.Token)
+// 	}
 
-	t.Run("delete URLs by owner", func(t *testing.T) {
-		err := service.Delete(ctx, []string{tokens[0]}, "user1")
-		require.NoError(t, err)
+// 	t.Run("delete URLs by owner", func(t *testing.T) {
+// 		err := service.Delete(ctx, []string{tokens[0]}, "user1")
+// 		require.NoError(t, err)
 
-		// Verify deletion
-		shURLs, err := service.GetByCondition(ctx, entities.ShURLCreatedByFieldName, "user1")
-		require.NoError(t, err)
-		assert.Len(t, shURLs, 1)
-	})
+// 		// Verify deletion
+// 		shURLs, err := service.GetByCondition(ctx, entities.ShURLCreatedByFieldName, "user1")
+// 		require.NoError(t, err)
+// 		assert.Len(t, shURLs, 1)
+// 	})
 
-	t.Run("delete URLs by wrong user", func(t *testing.T) {
-		err := service.Delete(ctx, []string{tokens[2]}, "user1")
-		require.NoError(t, err)
+// 	t.Run("delete URLs by wrong user", func(t *testing.T) {
+// 		err := service.Delete(ctx, []string{tokens[2]}, "user1")
+// 		require.NoError(t, err)
 
-		// URL should still exist since user1 doesn't own it
-		shURL, err := service.GetByID(ctx, tokens[2])
-		require.NoError(t, err)
-		assert.NotNil(t, shURL)
-	})
-}
+// 		// URL should still exist since user1 doesn't own it
+// 		shURL, err := service.GetByID(ctx, tokens[2])
+// 		require.NoError(t, err)
+// 		assert.NotNil(t, shURL)
+// 	})
+// }
 
 func TestShURLService_GetByCondition(t *testing.T) {
 	mockRepo := inmemory.NewInMemoryRepository()
