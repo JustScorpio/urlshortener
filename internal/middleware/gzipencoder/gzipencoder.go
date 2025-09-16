@@ -1,3 +1,4 @@
+// Пакет gzipencoder содержит middleware а также вспомогательные функции для сжатия и распаковки содержимого запросов
 package gzipencoder
 
 import (
@@ -7,7 +8,7 @@ import (
 	"strings"
 )
 
-// middleware для сжатия и разжатия данных.
+// GZIPEncodingMiddleware - middleware для сжатия и разжатия данных
 func GZIPEncodingMiddleware() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -50,12 +51,13 @@ func GZIPEncodingMiddleware() func(http.Handler) http.Handler {
 	}
 }
 
-// Обертка для ResponseWriter
+// gzipWriter - обертка для ResponseWriter
 type gzipWriter struct {
 	http.ResponseWriter
 	Writer io.Writer
 }
 
+// Write - реализация интерфейса io.Writer. Осуществляет перенаправление данных записи через gzip-компрессор вместо непосредственной записи в HTTP-ответ
 func (w gzipWriter) Write(b []byte) (int, error) {
 	// w.Writer будет отвечать за gzip-сжатие, поэтому пишем в него
 	return w.Writer.Write(b)

@@ -1,3 +1,4 @@
+// Пакет handlers содержит обработчики входящих запросов и вспомогательные функции
 package handlers
 
 import (
@@ -13,11 +14,13 @@ import (
 	"github.com/JustScorpio/urlshortener/internal/services"
 )
 
+// ShURLHandler - обработчик входящих запросов
 type ShURLHandler struct {
 	service       *services.ShURLService
 	shURLBaseAddr string
 }
 
+// NewShURLHandler - инициализация хэндлера
 func NewShURLHandler(service *services.ShURLService, shURLBaseAddr string) *ShURLHandler {
 	return &ShURLHandler{
 		service:       service,
@@ -25,7 +28,7 @@ func NewShURLHandler(service *services.ShURLService, shURLBaseAddr string) *ShUR
 	}
 }
 
-// Получить полный адрес
+// GetFullURL - получить полный адрес
 func (h *ShURLHandler) GetFullURL(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		// разрешаем только Get-запросы
@@ -60,7 +63,7 @@ func (h *ShURLHandler) GetFullURL(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusTemporaryRedirect)
 }
 
-// Укоротить адрес
+// ShortenURL - укоротить адрес
 func (h *ShURLHandler) ShortenURL(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		// разрешаем только POST-запросы
@@ -150,7 +153,7 @@ func (h *ShURLHandler) ShortenURL(w http.ResponseWriter, r *http.Request) {
 	w.Write(responseBody)
 }
 
-// Укоротить пачку адресов
+// ShortenURLsBatch - укоротить пачку адресов
 func (h *ShURLHandler) ShortenURLsBatch(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		// разрешаем только POST-запросы
@@ -227,7 +230,7 @@ func (h *ShURLHandler) ShortenURLsBatch(w http.ResponseWriter, r *http.Request) 
 	w.Write(jsonData)
 }
 
-// Получить полный адрес
+// GetShURLsByUserID - получить полный адрес
 func (h *ShURLHandler) GetShURLsByUserID(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		// разрешаем только Get-запросы
@@ -285,7 +288,7 @@ func (h *ShURLHandler) GetShURLsByUserID(w http.ResponseWriter, r *http.Request)
 	w.Write(jsonData)
 }
 
-// Удалить ShURLы Пользователя
+// DeleteMany - удалить ShURL'ы Пользователя
 func (h *ShURLHandler) DeleteMany(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodDelete {
 		// разрешаем только Delete-запросы

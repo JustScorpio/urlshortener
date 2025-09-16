@@ -1,3 +1,4 @@
+// Пакет services содержит структуры и методы, реализующие бизнес-логику приложения
 package services
 
 import (
@@ -13,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestShURLService_Create - проверка создания ShURL
 func TestShURLService_Create(t *testing.T) {
 	mockRepo := inmemory.NewInMemoryRepository()
 	service := NewShURLService(mockRepo)
@@ -49,6 +51,7 @@ func TestShURLService_Create(t *testing.T) {
 	})
 }
 
+// TestShURLService_Get - проверка получения ShURL
 func TestShURLService_Get(t *testing.T) {
 	mockRepo := inmemory.NewInMemoryRepository()
 	service := NewShURLService(mockRepo)
@@ -80,6 +83,7 @@ func TestShURLService_Get(t *testing.T) {
 	})
 }
 
+// TestShURLService_GetAllShURLsByUserID - проверка получения ShURL конкретного пользователя
 func TestShURLService_GetAllShURLsByUserID(t *testing.T) {
 	mockRepo := inmemory.NewInMemoryRepository()
 	service := NewShURLService(mockRepo)
@@ -120,6 +124,7 @@ func TestShURLService_GetAllShURLsByUserID(t *testing.T) {
 	})
 }
 
+// TestShURLService_Delete - проверка удаления ShURL
 func TestShURLService_Delete(t *testing.T) {
 	mockRepo := inmemory.NewInMemoryRepository()
 	service := NewShURLService(mockRepo)

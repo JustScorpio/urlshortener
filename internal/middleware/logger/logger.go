@@ -1,3 +1,4 @@
+// Пакет logger содержит middleware а также вспомогательные функции для логгирования
 package logger
 
 import (
@@ -8,7 +9,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// Инициализация синглтон логера с необходимым уровнем логирования.
+// NewLogger - Инициализация синглтон логера с необходимым уровнем логирования
 func NewLogger(level string, isProd bool) (*zap.Logger, error) {
 	// преобразуем текстовый уровень логирования в zap.AtomicLevel
 	lvl, err := zap.ParseAtomicLevel(level)
@@ -33,8 +34,7 @@ func NewLogger(level string, isProd bool) (*zap.Logger, error) {
 	return logger, nil
 }
 
-// middleware-логер для входящих HTTP-запросов.
-// aka функция, возвращающая функцию которая принимает функцию и возвращает функцию
+// LoggingMiddleware - middleware-логер для входящих HTTP-запросов
 func LoggingMiddleware(logger *zap.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -66,7 +66,7 @@ func LoggingMiddleware(logger *zap.Logger) func(http.Handler) http.Handler {
 	}
 }
 
-// Обертка (встраивание) для ResponseWriter
+// responseWriter - обертка (встраивание) для ResponseWriter
 type responseWriter struct {
 	http.ResponseWriter // встраиваем оригинальный http.ResponseWriter
 	status              int
@@ -74,6 +74,7 @@ type responseWriter struct {
 	body                string
 }
 
+// Write - реализация интерфейса io.Writer. Осуществляет перенаправление данных записи через gzip-компрессор вместо непосредственной записи в HTTP-ответ
 func (r *responseWriter) Write(b []byte) (int, error) {
 	// записываем ответ, используя оригинальный http.ResponseWriter
 	size, err := r.ResponseWriter.Write(b)
@@ -82,6 +83,7 @@ func (r *responseWriter) Write(b []byte) (int, error) {
 	return size, err
 }
 
+// WriteHeader отправляет HTTP-заголовок с указанным статус-кодом и захватывает код для последующего логирования.
 func (r *responseWriter) WriteHeader(statusCode int) {
 	// записываем код статуса, используя оригинальный http.ResponseWriter
 	r.ResponseWriter.WriteHeader(statusCode)
