@@ -16,11 +16,12 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// configContent - конфигурация базы данных считанная из файла
+// configContent - содержимое конфигурационного файла подключения к базе данных
 //
 //go:embed config.json
 var configContent []byte
 
+// DBConfiguration - конфигурация базы данных считанная из файла
 type DBConfiguration struct {
 	Path string `json:"path"`
 }
