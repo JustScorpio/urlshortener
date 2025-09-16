@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"reflect"
 
 	"github.com/JustScorpio/urlshortener/internal/customerrors"
 	"github.com/JustScorpio/urlshortener/internal/models/entities"
@@ -93,13 +92,21 @@ func (r *JSONFileShURLRepository) GetByCondition(ctx context.Context, key string
 		return nil, err
 	}
 
-	//Через рефлексию проверяем удовлетворение условия (допустимо только потому что все поля ShURL строковые)
 	var shurls []entities.ShURL
-	for _, entry := range entries {
-		val := reflect.ValueOf(entry.ShURL)
-		if !entry.Deleted && val.FieldByName(key).String() == value {
-			shurls = append(shurls, entry.ShURL)
+	switch key {
+	case entities.ShURLLongURLFieldName:
+		for _, entry := range entries {
+			if !entry.Deleted && entry.ShURL.LongURL == value {
+				shurls = append(shurls, entry.ShURL)
+			}
 		}
+	case entities.ShURLCreatedByFieldName:
+		for _, entry := range entries {
+			if !entry.Deleted && entry.ShURL.CreatedBy == value {
+				shurls = append(shurls, entry.ShURL)
+			}
+		}
+		// case entities.ShURLTokenFieldName: Ненада - есть GetById
 	}
 
 	return shurls, nil

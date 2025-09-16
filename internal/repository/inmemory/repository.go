@@ -3,7 +3,6 @@ package inmemory
 import (
 	"context"
 	"errors"
-	"reflect"
 	"sync"
 
 	"github.com/JustScorpio/urlshortener/internal/customerrors"
@@ -48,13 +47,21 @@ func (m *InMemoryRepository) GetByCondition(ctx context.Context, key string, val
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	//Через рефлексию проверяем удовлетворение условия (допустимо только потому что все поля ShURL строковые)
-	shurls := make([]entities.ShURL, 0, len(m.shURLs))
-	for _, entry := range m.shURLs {
-		val := reflect.ValueOf(entry.ShURL)
-		if !entry.Deleted && val.FieldByName(key).String() == value {
-			shurls = append(shurls, entry.ShURL)
+	var shurls []entities.ShURL
+	switch key {
+	case entities.ShURLLongURLFieldName:
+		for _, entry := range m.shURLs {
+			if !entry.Deleted && entry.ShURL.LongURL == value {
+				shurls = append(shurls, entry.ShURL)
+			}
 		}
+	case entities.ShURLCreatedByFieldName:
+		for _, entry := range m.shURLs {
+			if !entry.Deleted && entry.ShURL.CreatedBy == value {
+				shurls = append(shurls, entry.ShURL)
+			}
+		}
+		// case entities.ShURLTokenFieldName: Ненада - есть GetById
 	}
 
 	return shurls, nil
