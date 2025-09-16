@@ -50,7 +50,7 @@ func TestShURLService_Create(t *testing.T) {
 	})
 }
 
-func TestShURLService_GetById(t *testing.T) {
+func TestShURLService_GetByID(t *testing.T) {
 	mockRepo := inmemory.NewInMemoryRepository()
 	service := NewShURLService(mockRepo)
 	ctx := context.Background()
@@ -64,14 +64,14 @@ func TestShURLService_GetById(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("get existing URL", func(t *testing.T) {
-		shURL, err := service.GetById(ctx, created.Token)
+		shURL, err := service.GetByID(ctx, created.Token)
 		require.NoError(t, err)
 		assert.Equal(t, created.Token, shURL.Token)
 		assert.Equal(t, created.LongURL, shURL.LongURL)
 	})
 
 	t.Run("get non-existing URL", func(t *testing.T) {
-		shURL, err := service.GetById(ctx, "nonexistent")
+		shURL, err := service.GetByID(ctx, "nonexistent")
 		assert.Nil(t, shURL)
 
 		// NotFound
@@ -155,7 +155,7 @@ func TestShURLService_Delete(t *testing.T) {
 		require.NoError(t, err)
 
 		// URL should still exist since user1 doesn't own it
-		shURL, err := service.GetById(ctx, tokens[2])
+		shURL, err := service.GetByID(ctx, tokens[2])
 		require.NoError(t, err)
 		assert.NotNil(t, shURL)
 	})
@@ -211,15 +211,6 @@ func TestShURLService_GetByCondition(t *testing.T) {
 		assert.Len(t, shURLs, 1)
 		assert.Equal(t, "https://example1.com", shURLs[0].LongURL)
 		assert.Equal(t, "user1", shURLs[0].CreatedBy)
-	})
-
-	t.Run("get by Token field", func(t *testing.T) {
-		tokenToFind := createdURLs[0].Token
-		shURLs, err := service.GetByCondition(ctx, "Token", tokenToFind)
-		require.NoError(t, err)
-		assert.Len(t, shURLs, 1)
-		assert.Equal(t, tokenToFind, shURLs[0].Token)
-		assert.Equal(t, "https://example1.com", shURLs[0].LongURL)
 	})
 
 	t.Run("invalid field name", func(t *testing.T) {

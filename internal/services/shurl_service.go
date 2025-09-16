@@ -22,7 +22,7 @@ type TaskType int
 const (
 	TaskGetAll TaskType = iota
 	TaskGetByCondition
-	TaskGetById
+	TaskGetByID
 	TaskCreate
 	TaskUpdate
 	TaskDelete
@@ -70,9 +70,9 @@ func (s *ShURLService) taskProcessor() {
 		case TaskGetByCondition:
 			kayValuePair := task.Payload.(TaskGetByConditionPayload)
 			result, err = s.repo.GetByCondition(task.Context, kayValuePair.Key, kayValuePair.Value)
-		case TaskGetById:
+		case TaskGetByID:
 			token := task.Payload.(string)
-			result, err = s.repo.GetById(task.Context, token)
+			result, err = s.repo.GetByID(task.Context, token)
 		case TaskCreate:
 			shURL := task.Payload.(*dtos.NewShURL)
 			result, err = s.create(task.Context, *shURL)
@@ -89,7 +89,7 @@ func (s *ShURLService) taskProcessor() {
 
 		if task.ResultCh != nil {
 			switch task.Type {
-			case TaskGetAll, TaskGetByCondition, TaskGetById, TaskCreate:
+			case TaskGetAll, TaskGetByCondition, TaskGetByID, TaskCreate:
 				task.ResultCh <- TaskResult{
 					Result: result,
 					Err:    err,
@@ -139,9 +139,9 @@ func (s *ShURLService) GetByCondition(ctx context.Context, key string, value str
 	return res.([]entities.ShURL), err
 }
 
-func (s *ShURLService) GetById(ctx context.Context, token string) (*entities.ShURL, error) {
+func (s *ShURLService) GetByID(ctx context.Context, token string) (*entities.ShURL, error) {
 	res, err := s.enqueueTask(Task{
-		Type:    TaskGetById,
+		Type:    TaskGetByID,
 		Context: ctx,
 		Payload: token,
 	})

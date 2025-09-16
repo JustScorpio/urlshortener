@@ -131,7 +131,7 @@ func (r *SQLiteShURLRepository) GetByCondition(ctx context.Context, key string, 
 	return shurls, nil
 }
 
-func (r *SQLiteShURLRepository) GetById(ctx context.Context, id string) (*entities.ShURL, error) {
+func (r *SQLiteShURLRepository) GetByID(ctx context.Context, id string) (*entities.ShURL, error) {
 	var shurl entities.ShURL
 	var deleted bool
 	err := r.db.QueryRowContext(

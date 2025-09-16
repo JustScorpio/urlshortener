@@ -10,7 +10,7 @@ import (
 type IRepository[T entities.Entity] interface {
 	GetAll(ctx context.Context) ([]T, error)
 	GetByCondition(ctx context.Context, key string, value string) ([]T, error)
-	GetById(ctx context.Context, id string) (*T, error)
+	GetByID(ctx context.Context, id string) (*T, error)
 	Create(ctx context.Context, entity *T) error
 	Update(ctx context.Context, entity *T) error
 	Delete(ctx context.Context, id []string, userID string) error

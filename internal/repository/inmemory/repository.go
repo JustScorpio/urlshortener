@@ -61,13 +61,13 @@ func (m *InMemoryRepository) GetByCondition(ctx context.Context, key string, val
 				shurls = append(shurls, entry.ShURL)
 			}
 		}
-		// case entities.ShURLTokenFieldName: Ненада - есть GetById
+		// case entities.ShURLTokenFieldName: Ненада - есть GetByID
 	}
 
 	return shurls, nil
 }
 
-func (m *InMemoryRepository) GetById(ctx context.Context, token string) (*entities.ShURL, error) {
+func (m *InMemoryRepository) GetByID(ctx context.Context, token string) (*entities.ShURL, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 

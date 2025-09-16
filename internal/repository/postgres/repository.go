@@ -139,7 +139,7 @@ func (r *PostgresShURLRepository) GetByCondition(ctx context.Context, key string
 	return shurls, nil
 }
 
-func (r *PostgresShURLRepository) GetById(ctx context.Context, id string) (*entities.ShURL, error) {
+func (r *PostgresShURLRepository) GetByID(ctx context.Context, id string) (*entities.ShURL, error) {
 	var shurl entities.ShURL
 	var deleted bool
 	err := r.db.QueryRow(ctx, "SELECT token, longurl, createdby, deleted FROM shurls WHERE token = $1", id).Scan(&shurl.Token, &shurl.LongURL, &shurl.CreatedBy, &deleted)

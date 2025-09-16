@@ -43,7 +43,7 @@ func (h *ShURLHandler) GetFullURL(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Получение сущности из сервиса
-	shURL, err := h.service.GetById(r.Context(), token)
+	shURL, err := h.service.GetByID(r.Context(), token)
 	if err != nil {
 		var statusCode = http.StatusInternalServerError
 

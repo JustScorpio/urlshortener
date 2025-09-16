@@ -106,13 +106,13 @@ func (r *JSONFileShURLRepository) GetByCondition(ctx context.Context, key string
 				shurls = append(shurls, entry.ShURL)
 			}
 		}
-		// case entities.ShURLTokenFieldName: Ненада - есть GetById
+		// case entities.ShURLTokenFieldName: Ненада - есть GetByID
 	}
 
 	return shurls, nil
 }
 
-func (r *JSONFileShURLRepository) GetById(ctx context.Context, id string) (*entities.ShURL, error) {
+func (r *JSONFileShURLRepository) GetByID(ctx context.Context, id string) (*entities.ShURL, error) {
 	entries, err := r.GetAllEntries(ctx)
 	if err != nil {
 		return nil, err

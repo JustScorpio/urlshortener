@@ -59,7 +59,7 @@ func BenchmarkShURLService_Get(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		service.GetById(ctx, shURL.Token)
+		service.GetByID(ctx, shURL.Token)
 	}
 
 	b.StopTimer()
