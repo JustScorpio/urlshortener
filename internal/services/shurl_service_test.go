@@ -1,5 +1,5 @@
-// Пакет services содержит структуры и методы, реализующие бизнес-логику приложения
-package services
+// Пакет services_test содержит тесты сервисов
+package services_test
 
 import (
 	"context"
@@ -10,6 +10,7 @@ import (
 	"github.com/JustScorpio/urlshortener/internal/customerrors"
 	"github.com/JustScorpio/urlshortener/internal/models/dtos"
 	"github.com/JustScorpio/urlshortener/internal/repository/inmemory"
+	"github.com/JustScorpio/urlshortener/internal/services"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -17,7 +18,7 @@ import (
 // TestShURLService_Create - проверка создания ShURL
 func TestShURLService_Create(t *testing.T) {
 	mockRepo := inmemory.NewInMemoryRepository()
-	service := NewShURLService(mockRepo)
+	service := services.NewShURLService(mockRepo)
 	ctx := context.Background()
 
 	t.Run("successful creation", func(t *testing.T) {
@@ -54,7 +55,7 @@ func TestShURLService_Create(t *testing.T) {
 // TestShURLService_Get - проверка получения ShURL
 func TestShURLService_Get(t *testing.T) {
 	mockRepo := inmemory.NewInMemoryRepository()
-	service := NewShURLService(mockRepo)
+	service := services.NewShURLService(mockRepo)
 	ctx := context.Background()
 
 	// Setup test data
@@ -86,7 +87,7 @@ func TestShURLService_Get(t *testing.T) {
 // TestShURLService_GetAllShURLsByUserID - проверка получения ShURL конкретного пользователя
 func TestShURLService_GetAllShURLsByUserID(t *testing.T) {
 	mockRepo := inmemory.NewInMemoryRepository()
-	service := NewShURLService(mockRepo)
+	service := services.NewShURLService(mockRepo)
 	ctx := context.Background()
 
 	// Setup test data
@@ -127,7 +128,7 @@ func TestShURLService_GetAllShURLsByUserID(t *testing.T) {
 // TestShURLService_Delete - проверка удаления ShURL
 func TestShURLService_Delete(t *testing.T) {
 	mockRepo := inmemory.NewInMemoryRepository()
-	service := NewShURLService(mockRepo)
+	service := services.NewShURLService(mockRepo)
 	ctx := context.Background()
 
 	// Setup test data

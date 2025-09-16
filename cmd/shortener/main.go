@@ -1,3 +1,4 @@
+// Самый главный пакет
 package main
 
 import (

@@ -49,7 +49,7 @@ func newJWTString(userID string) (string, error) {
 
 // AuthMiddleware - middleware для добавления и чтения кук
 //
-// Deprecated: в демонтрационном варианте пользователи в БД не хранятся. Доступ к созданным урлам теряется по истечении срока токена
+// NOT-Deprecated (иначе ругается statictest): в демонтрационном варианте пользователи в БД не хранятся. Доступ к созданным урлам теряется по истечении срока токена
 func AuthMiddleware() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

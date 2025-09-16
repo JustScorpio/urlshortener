@@ -1,3 +1,4 @@
+// Самый главный пакет
 package main
 
 import (
@@ -14,6 +15,7 @@ import (
 	"github.com/JustScorpio/urlshortener/internal/services"
 )
 
+// BenchmarkShURLService_Create - бенчмарк быстродействия создания ShURL'ов
 func BenchmarkShURLService_Create(b *testing.B) {
 	//Пустой сервер в отдельной горутине без хэндлеров для pprof
 	go func() {
@@ -39,6 +41,7 @@ func BenchmarkShURLService_Create(b *testing.B) {
 	time.Sleep(3 * time.Second)
 }
 
+// BenchmarkShURLService_Get - бенчмарк быстродействия получения ShURL'ов
 func BenchmarkShURLService_Get(b *testing.B) {
 	//Пустой сервер в отдельной горутине без хэндлеров для pprof
 	go func() {
@@ -67,6 +70,7 @@ func BenchmarkShURLService_Get(b *testing.B) {
 	time.Sleep(3 * time.Second)
 }
 
+// BenchmarkShURLService_GetAllByUserID - бенчмарк быстродействия получения ShURL'ов по ид пользователя
 func BenchmarkShURLService_GetAllByUserID(b *testing.B) {
 	//Пустой сервер в отдельной горутине без хэндлеров для pprof
 	go func() {
