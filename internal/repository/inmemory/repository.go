@@ -51,13 +51,13 @@ func (m *InMemoryRepository) GetByCondition(ctx context.Context, key string, val
 	switch key {
 	case entities.ShURLLongURLFieldName:
 		for _, entry := range m.shURLs {
-			if !entry.Deleted && entry.ShURL.LongURL == value {
+			if entry.ShURL.LongURL == value {
 				shurls = append(shurls, entry.ShURL)
 			}
 		}
 	case entities.ShURLCreatedByFieldName:
 		for _, entry := range m.shURLs {
-			if !entry.Deleted && entry.ShURL.CreatedBy == value {
+			if entry.ShURL.CreatedBy == value {
 				shurls = append(shurls, entry.ShURL)
 			}
 		}
