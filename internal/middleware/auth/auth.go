@@ -1,3 +1,4 @@
+// Пакет auth содержит middleware а также вспомогательные функции для аутентификации и авторизации пользователей
 package auth
 
 import (
@@ -24,7 +25,7 @@ type Claims struct {
 	UserID string
 }
 
-// newJWTString создаёт токен и возвращает его в виде строки.
+// newJWTString - создаёт токен и возвращает его в виде строки.
 func newJWTString(userID string) (string, error) {
 	// создаём новый токен с алгоритмом подписи HS256 и утверждениями — Claims
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, Claims{
@@ -46,8 +47,9 @@ func newJWTString(userID string) (string, error) {
 	return tokenString, nil
 }
 
-// middleware для добавления и чтения кук.
-// В демонтрационном варианте пользователи в БД не хранятся. Доступ к созданным урлам теряется по истечении срока токена
+// AuthMiddleware - middleware для добавления и чтения кук
+//
+// NOT-Deprecated (иначе ругается statictest): в демонтрационном варианте пользователи в БД не хранятся. Доступ к созданным урлам теряется по истечении срока токена
 func AuthMiddleware() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

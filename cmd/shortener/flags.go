@@ -1,3 +1,4 @@
+// Самый главный пакет
 package main
 
 import (
@@ -5,19 +6,19 @@ import (
 	"strings"
 )
 
-// flagShortenerRouterAddr содержит адрес и порт для запуска сервера
+// flagShortenerRouterAddr - содержит адрес и порт для запуска сервера
 var flagShortenerRouterAddr string
 
-// flagRedirectRouterAddr содержит базовый адрес результирующего сокращённого URL (часть перед токеном)
+// flagRedirectRouterAddr - содержит базовый адрес результирующего сокращённого URL (часть перед токеном)
 var flagRedirectRouterAddr string
 
-// flagDbFilePath содержит путь до файла базы данных (для .json БД)
+// flagDbFilePath - содержит путь до файла базы данных (для .json БД)
 var flagDBFilePath string
 
-// flagDBConnStr содержит строку подключения к БД (для postgres)
+// flagDBConnStr - содержит строку подключения к БД (для postgres)
 var flagDBConnStr string
 
-// parseFlags обрабатывает аргументы командной строки и сохраняет их значения в соответствующих переменных
+// parseFlags - обрабатывает аргументы командной строки и сохраняет их значения в соответствующих переменных
 func parseFlags() {
 	flag.StringVar(&flagShortenerRouterAddr, "a", ":8080", "address and port to run server")
 	flag.StringVar(&flagRedirectRouterAddr, "b", ":8080", "base address and port for shortened URLs")
@@ -29,7 +30,7 @@ func parseFlags() {
 	flagRedirectRouterAddr = normalizeAddress(flagRedirectRouterAddr)
 }
 
-// Нормализация адресов
+// normalizeAddress - нормализация адресов
 func normalizeAddress(addr string) string {
 
 	// Добавляем порт, если его нет

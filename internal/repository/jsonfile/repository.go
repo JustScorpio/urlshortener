@@ -1,3 +1,4 @@
+// Пакет jsonfile содержит репозиторий, который хранит данные в виде json-файла
 package jsonfile
 
 import (
@@ -13,19 +14,25 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-var errNotFound = errors.New("not found")
-var errAlreadyExists = errors.New("already exists")
-var errGone = customerrors.NewGoneError(errors.New("shurl has been deleted"))
+// Кастомные типы ошибок, возвращаемых некоторыми из функций пакета
+var (
+	errNotFound      = errors.New("not found")
+	errAlreadyExists = errors.New("already exists")
+	errGone          = customerrors.NewGoneError(errors.New("shurl has been deleted"))
+)
 
+// JSONFileShURLRepository - репозиторий
 type JSONFileShURLRepository struct {
 	filePath string
 }
 
+// ShURLEntry - расширение ShURL с информацией о том удалена ли сущность
 type ShURLEntry struct {
 	ShURL   entities.ShURL
 	Deleted bool
 }
 
+// NewJSONFileShURLRepository - инициализация репозитория
 func NewJSONFileShURLRepository(filePath string) (*JSONFileShURLRepository, error) {
 	// Создаем директорию, если ее нет
 	dir := filepath.Dir(filePath)
@@ -48,6 +55,7 @@ func NewJSONFileShURLRepository(filePath string) (*JSONFileShURLRepository, erro
 	return &JSONFileShURLRepository{filePath: filePath}, nil
 }
 
+// GetAllEntries - получить все сущности из json-файла
 // В отличие от GetAll возвращает []ShURLEntry которые содержат метку удаления deleted
 func (r *JSONFileShURLRepository) GetAllEntries(ctx context.Context) ([]ShURLEntry, error) {
 
@@ -69,6 +77,7 @@ func (r *JSONFileShURLRepository) GetAllEntries(ctx context.Context) ([]ShURLEnt
 	return entries, nil
 }
 
+// GetAll - получить все ShURL
 // Возвращает ShURL'ы, у которых deleted = false
 func (r *JSONFileShURLRepository) GetAll(ctx context.Context) ([]entities.ShURL, error) {
 	var entries, err = r.GetAllEntries(ctx)
@@ -86,6 +95,7 @@ func (r *JSONFileShURLRepository) GetAll(ctx context.Context) ([]entities.ShURL,
 	return shurls, nil
 }
 
+// Get - получить ShURL по ID (токену)
 func (r *JSONFileShURLRepository) Get(ctx context.Context, id string) (*entities.ShURL, error) {
 	entries, err := r.GetAllEntries(ctx)
 	if err != nil {
@@ -110,6 +120,7 @@ func (r *JSONFileShURLRepository) Get(ctx context.Context, id string) (*entities
 	return nil, errNotFound
 }
 
+// Create - создать ShURL
 func (r *JSONFileShURLRepository) Create(ctx context.Context, shurl *entities.ShURL) error {
 	//При работе с json-файлом перезаписывается всё содержимое, поэтому работаем с ShURLEntry чтобы не потерять удалённые записи
 	entries, err := r.GetAllEntries(ctx)
@@ -138,6 +149,7 @@ func (r *JSONFileShURLRepository) Create(ctx context.Context, shurl *entities.Sh
 	return os.WriteFile(r.filePath, jsonShurls, 0644)
 }
 
+// Update - обновить ShURL
 func (r *JSONFileShURLRepository) Update(ctx context.Context, shurl *entities.ShURL) error {
 	//При работе с json-файлом перезаписывается всё содержимое, поэтому работаем с ShURLEntry чтобы не потерять удалённые записи
 	entries, err := r.GetAllEntries(ctx)
@@ -166,6 +178,7 @@ func (r *JSONFileShURLRepository) Update(ctx context.Context, shurl *entities.Sh
 	return errNotFound
 }
 
+// Delete - удалить ShURL
 func (r *JSONFileShURLRepository) Delete(ctx context.Context, ids []string, userID string) error {
 	//При работе с json-файлом перезаписывается всё содержимое, поэтому работаем с ShURLEntry чтобы не потерять удалённые записи
 	entries, err := r.GetAllEntries(ctx)
@@ -195,10 +208,12 @@ func (r *JSONFileShURLRepository) Delete(ctx context.Context, ids []string, user
 	return os.WriteFile(r.filePath, jsonShurls, 0644)
 }
 
+// CloseConnection - закрыть соединение с базой данных
 func (r *JSONFileShURLRepository) CloseConnection() {
 	//Nothing
 }
 
+// PingDB - проверить подключение к базе данных
 func (r *JSONFileShURLRepository) PingDB() bool {
 	_, err := os.Stat(r.filePath)
 	return err == nil

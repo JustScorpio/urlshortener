@@ -1,265 +1,388 @@
-package handlers
+// Пакет handlers_test содержит тесты обработчиков входящих запросов и вспомогательные функции
+package handlers_test
 
 import (
+	"bytes"
 	"context"
-	"errors"
+	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
-	"github.com/JustScorpio/urlshortener/internal/models/entities"
+	"github.com/JustScorpio/urlshortener/internal/customcontext"
+	"github.com/JustScorpio/urlshortener/internal/handlers"
+	"github.com/JustScorpio/urlshortener/internal/models/dtos"
+	"github.com/JustScorpio/urlshortener/internal/repository/inmemory"
 	"github.com/JustScorpio/urlshortener/internal/services"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
-type MockRepository struct {
-	mock.Mock
-	db map[string]ShURLEntry
-}
-
-type ShURLEntry struct {
-	ShURL   entities.ShURL
-	Deleted bool
-}
-
-func (r *MockRepository) GetAll(ctx context.Context) ([]entities.ShURL, error) {
-	var result []entities.ShURL
-	for _, entry := range r.db {
-		if !entry.Deleted {
-			result = append(result, entry.ShURL)
-		}
-	}
-
-	return result, nil
-}
-
-func (r *MockRepository) Get(ctx context.Context, id string) (*entities.ShURL, error) {
-	val, exists := r.db[id]
-	if !exists {
-		return nil, errors.New("Entry not found")
-	}
-
-	return &val.ShURL, nil
-}
-
-func (r *MockRepository) Create(ctx context.Context, shurl *entities.ShURL) error {
-	if _, exists := r.db[shurl.Token]; exists && !r.db[shurl.Token].Deleted {
-		return errors.New("Entry with such id already exists")
-	}
-
-	newEntry := ShURLEntry{ShURL: *shurl, Deleted: false}
-	r.db[shurl.Token] = newEntry
-	return nil
-}
-
-func (r *MockRepository) Update(ctx context.Context, shurl *entities.ShURL) error {
-	if _, exists := r.db[shurl.Token]; !exists && !r.db[shurl.Token].Deleted {
-		return nil
-	}
-
-	r.db[shurl.Token] = ShURLEntry{ShURL: *shurl, Deleted: false}
-	return nil
-}
-
-func (r *MockRepository) Delete(ctx context.Context, ids []string, userID string) error {
-	for _, id := range ids {
-		entry := r.db[id]
-		if entry.ShURL.CreatedBy == userID {
-			r.db[id] = ShURLEntry{ShURL: r.db[id].ShURL, Deleted: true}
-		}
-	}
-
-	return nil
-}
-
-func (r *MockRepository) CloseConnection() {
-	//Nothing
-}
-
-func (r *MockRepository) PingDB() bool {
-	return true
-}
-
+// TestShURLHandler_GetFullURL - проверка получения оригинального (длинного) URL
 func TestShURLHandler_GetFullURL(t *testing.T) {
+	mockRepo := inmemory.NewInMemoryRepository()
+	service := services.NewShURLService(mockRepo)
+	handler := handlers.NewShURLHandler(service, "localhost:8080")
 
-	type want struct {
-		statusCode int
-		location   string
+	// Setup test data
+	ctx := context.Background()
+	newURL := dtos.NewShURL{
+		LongURL:   "https://example.com",
+		CreatedBy: "user1",
 	}
+	shURL, err := service.Create(ctx, newURL)
+	require.NoError(t, err)
 
-	shurl1 := entities.ShURL{Token: "acbdefgh", LongURL: "https://practicum.yandex.ru/"}
-	shurl2 := entities.ShURL{Token: "bcdefghi", LongURL: "https://www.google.com/"}
-	shurl3 := entities.ShURL{Token: "cdefghij", LongURL: "https://vk.com/"}
-	shurlsEntries := map[string]ShURLEntry{
-		shurl1.Token: {shurl1, false},
-		shurl2.Token: {shurl2, false},
-		shurl3.Token: {shurl3, false},
-	}
-	mockRepo := MockRepository{db: shurlsEntries}
-	mockService := services.NewShURLService(&mockRepo)
-	mockHandler := NewShURLHandler(mockService, "localhost:8080")
+	t.Run("successful redirect", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/"+shURL.Token, nil)
+		w := httptest.NewRecorder()
 
-	type args struct {
-		r *http.Request
-	}
-	tests := []struct {
-		name string
-		args args
-		want want
-	}{
-		{
-			name: "Test #1: positive",
-			args: args{
-				r: httptest.NewRequest(http.MethodGet, "/"+shurl1.Token, nil),
-			},
-			want: want{
-				statusCode: http.StatusTemporaryRedirect,
-				location:   shurl1.LongURL,
-			},
-		},
-		{
-			name: "Test #2: token not exists",
-			args: args{
-				r: httptest.NewRequest(http.MethodGet, "/incorrecttoken", nil),
-			},
-			want: want{
-				statusCode: http.StatusInternalServerError,
-				location:   "", //при не 307 не имеет значения
-			},
-		},
-		{
-			name: "Test #3: method not allowed",
-			args: args{
-				r: httptest.NewRequest(http.MethodPost, "/"+shurl1.Token, nil),
-			},
-			want: want{
-				statusCode: http.StatusMethodNotAllowed,
-				location:   "", //при не 307 не имеет значения
-			},
-		},
-		{
-			name: "Test #4: bad request",
-			args: args{
-				r: httptest.NewRequest(http.MethodGet, "/", nil),
-			},
-			want: want{
-				statusCode: http.StatusBadRequest,
-				location:   "", //при не 307 не имеет значения
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			recorder := httptest.NewRecorder()
-			mockHandler.GetFullURL(recorder, tt.args.r)
-			result := recorder.Result()
-			defer result.Body.Close() //Важно - не забывать закрывать!
+		handler.GetFullURL(w, req)
 
-			require.Equal(t, tt.want.statusCode, result.StatusCode)
-			if result.StatusCode == http.StatusTemporaryRedirect {
-				assert.Equal(t, tt.want.location, result.Header.Get("location"))
-			}
-		})
-	}
+		resp := w.Result()
+		defer resp.Body.Close()
+
+		assert.Equal(t, http.StatusTemporaryRedirect, resp.StatusCode)
+		assert.Equal(t, shURL.LongURL, resp.Header.Get("Location"))
+	})
+
+	t.Run("non-existing token returns error", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/nonexistent", nil)
+		w := httptest.NewRecorder()
+
+		handler.GetFullURL(w, req)
+
+		resp := w.Result()
+		defer resp.Body.Close()
+
+		assert.Equal(t, http.StatusNotFound, resp.StatusCode)
+	})
+
+	t.Run("empty token returns bad request", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/", nil)
+		w := httptest.NewRecorder()
+
+		handler.GetFullURL(w, req)
+
+		resp := w.Result()
+		defer resp.Body.Close()
+
+		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	})
+
+	t.Run("wrong method returns method not allowed", func(t *testing.T) {
+		req := httptest.NewRequest("POST", "/"+shURL.Token, nil)
+		w := httptest.NewRecorder()
+
+		handler.GetFullURL(w, req)
+
+		resp := w.Result()
+		defer resp.Body.Close()
+
+		assert.Equal(t, http.StatusMethodNotAllowed, resp.StatusCode)
+	})
 }
 
+// TestShURLHandler_ShortenURL - проверка укорачивания URL
 func TestShURLHandler_ShortenURL(t *testing.T) {
+	mockRepo := inmemory.NewInMemoryRepository()
+	service := services.NewShURLService(mockRepo)
+	handler := handlers.NewShURLHandler(service, "localhost:8080")
 
-	type want struct {
-		statusCode int
-		token      string
+	t.Run("successful creation with text content type", func(t *testing.T) {
+		body := strings.NewReader("https://example_text.com")
+		req := httptest.NewRequest("POST", "/", body)
+		req.Header.Set("Content-Type", "text/plain")
+		ctx := customcontext.WithUserID(req.Context(), "user1")
+		req = req.WithContext(ctx)
+		w := httptest.NewRecorder()
+
+		handler.ShortenURL(w, req)
+
+		resp := w.Result()
+		defer resp.Body.Close()
+
+		assert.Equal(t, http.StatusCreated, resp.StatusCode)
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		assert.Contains(t, string(bodyBytes), "http://localhost:8080/")
+	})
+
+	t.Run("successful creation with JSON content type", func(t *testing.T) {
+		jsonBody := `{"url": "https://example_json.com"}`
+		body := strings.NewReader(jsonBody)
+		req := httptest.NewRequest("POST", "/", body)
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Accept", "application/json")
+		ctx := customcontext.WithUserID(req.Context(), "user1")
+		req = req.WithContext(ctx)
+		w := httptest.NewRecorder()
+
+		handler.ShortenURL(w, req)
+
+		resp := w.Result()
+		defer resp.Body.Close()
+
+		assert.Equal(t, http.StatusCreated, resp.StatusCode)
+		assert.Equal(t, "application/json", resp.Header.Get("Content-Type"))
+
+		var response struct {
+			Result string `json:"result"`
+		}
+		err := json.NewDecoder(resp.Body).Decode(&response)
+		require.NoError(t, err)
+		assert.Contains(t, response.Result, "http://localhost:8080/")
+	})
+
+	t.Run("duplicate URL returns conflict status", func(t *testing.T) {
+		// Пытаемся создать дубликат
+		body := strings.NewReader("https://example_text.com")
+		req := httptest.NewRequest("POST", "/", body)
+		req.Header.Set("Content-Type", "text/plain")
+		ctx := customcontext.WithUserID(req.Context(), "user1")
+		req = req.WithContext(ctx)
+		w := httptest.NewRecorder()
+
+		handler.ShortenURL(w, req)
+		resp2 := w.Result()
+		defer resp2.Body.Close()
+
+		// Должен вернуть статус Conflict
+		assert.Equal(t, http.StatusConflict, resp2.StatusCode)
+	})
+
+	t.Run("empty body returns bad request", func(t *testing.T) {
+		req := httptest.NewRequest("POST", "/", nil)
+		ctx := customcontext.WithUserID(req.Context(), "user1")
+		req = req.WithContext(ctx)
+		w := httptest.NewRecorder()
+
+		handler.ShortenURL(w, req)
+
+		resp := w.Result()
+		defer resp.Body.Close()
+
+		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	})
+
+	t.Run("wrong method returns method not allowed", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/", nil)
+		w := httptest.NewRecorder()
+
+		handler.ShortenURL(w, req)
+
+		resp := w.Result()
+		defer resp.Body.Close()
+
+		assert.Equal(t, http.StatusMethodNotAllowed, resp.StatusCode)
+	})
+}
+
+// TestShURLHandler_ShortenURLsBatch - проверка укорачивания пачки URL за раз
+func TestShURLHandler_ShortenURLsBatch(t *testing.T) {
+	mockRepo := inmemory.NewInMemoryRepository()
+	service := services.NewShURLService(mockRepo)
+	handler := handlers.NewShURLHandler(service, "localhost:8080")
+
+	t.Run("successful batch creation", func(t *testing.T) {
+		batch := []map[string]string{
+			{"correlation_id": "1", "original_url": "https://example1.com"},
+			{"correlation_id": "2", "original_url": "https://example2.com"},
+		}
+		jsonBody, _ := json.Marshal(batch)
+
+		req := httptest.NewRequest("POST", "/api/shorten/batch", bytes.NewReader(jsonBody))
+		req.Header.Set("Content-Type", "application/json")
+		ctx := customcontext.WithUserID(req.Context(), "user1")
+		req = req.WithContext(ctx)
+		w := httptest.NewRecorder()
+
+		handler.ShortenURLsBatch(w, req)
+
+		resp := w.Result()
+		defer resp.Body.Close()
+
+		assert.Equal(t, http.StatusCreated, resp.StatusCode)
+		assert.Equal(t, "application/json", resp.Header.Get("Content-Type"))
+
+		var response []map[string]string
+		err := json.NewDecoder(resp.Body).Decode(&response)
+		require.NoError(t, err)
+		assert.Len(t, response, 2)
+		assert.Equal(t, "1", response[0]["correlation_id"])
+		assert.Contains(t, response[0]["short_url"], "http://localhost:8080/")
+	})
+
+	t.Run("wrong content type returns bad request", func(t *testing.T) {
+		req := httptest.NewRequest("POST", "/api/shorten/batch", strings.NewReader("test"))
+		req.Header.Set("Content-Type", "text/plain")
+		ctx := customcontext.WithUserID(req.Context(), "user1")
+		req = req.WithContext(ctx)
+		w := httptest.NewRecorder()
+
+		handler.ShortenURLsBatch(w, req)
+
+		resp := w.Result()
+		defer resp.Body.Close()
+
+		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	})
+
+	t.Run("empty body returns bad request", func(t *testing.T) {
+		req := httptest.NewRequest("POST", "/api/shorten/batch", nil)
+		req.Header.Set("Content-Type", "application/json")
+		ctx := customcontext.WithUserID(req.Context(), "user1")
+		req = req.WithContext(ctx)
+		w := httptest.NewRecorder()
+
+		handler.ShortenURLsBatch(w, req)
+
+		resp := w.Result()
+		defer resp.Body.Close()
+
+		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	})
+}
+
+// TestShURLHandler_GetShURLsByUserID - проверка получения ShURL конкретного пользователя
+func TestShURLHandler_GetShURLsByUserID(t *testing.T) {
+	mockRepo := inmemory.NewInMemoryRepository()
+	service := services.NewShURLService(mockRepo)
+	handler := handlers.NewShURLHandler(service, "localhost:8080")
+
+	// Setup test data
+	ctx := context.Background()
+	urls := []dtos.NewShURL{
+		{LongURL: "https://example1.com", CreatedBy: "user1"},
+		{LongURL: "https://example2.com", CreatedBy: "user1"},
+	}
+	for _, url := range urls {
+		_, err := service.Create(ctx, url)
+		require.NoError(t, err)
 	}
 
-	shurl1 := entities.ShURL{Token: "acbdefgh", LongURL: "https://practicum.yandex.ru/"}
-	shurl2 := entities.ShURL{Token: "bcdefghi", LongURL: "https://www.google.com/"}
-	shurl3 := entities.ShURL{Token: "cdefghij", LongURL: "https://vk.com/"}
-	shurlsEntries := map[string]ShURLEntry{
-		shurl1.Token: {shurl1, false},
-		shurl2.Token: {shurl2, false},
-		shurl3.Token: {shurl3, false},
-	}
-	mockRepo := MockRepository{db: shurlsEntries}
-	mockService := services.NewShURLService(&mockRepo)
-	mockHandler := NewShURLHandler(mockService, "localhost:8080")
+	t.Run("successful get user URLs", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/api/user/urls", nil)
+		ctx := customcontext.WithUserID(req.Context(), "user1")
+		req = req.WithContext(ctx)
+		w := httptest.NewRecorder()
 
-	type args struct {
-		method string
-		url    string
-	}
-	tests := []struct {
-		name string
-		args args
-		want want
-	}{
-		{
-			name: "Test #1: positive",
-			args: args{
-				method: http.MethodPost,
-				url:    "https://metanit.com/",
-			},
-			want: want{
-				statusCode: http.StatusCreated,
-				token:      "", //при создании нового не имеет значения
-			},
-		},
-		{
-			name: "Test #2: URL already exists",
-			args: args{
-				method: http.MethodPost,
-				url:    shurl1.LongURL,
-			},
-			want: want{
-				statusCode: http.StatusConflict,
-				token:      shurl1.Token,
-			},
-		},
-		{
-			name: "Test #3: method not allowed",
-			args: args{
-				method: http.MethodGet,
-				url:    "https://metanit.com/",
-			},
-			want: want{
-				statusCode: http.StatusMethodNotAllowed,
-				token:      "", //при не 201 не имеет значения
-			},
-		},
-		{
-			name: "Test #4: body is empty",
-			args: args{
-				method: http.MethodPost,
-				url:    "",
-			},
-			want: want{
-				statusCode: http.StatusBadRequest,
-				token:      "", //при не 201 не имеет значения
-			},
-		},
-		//TODO: Тесты для json-варианта запросов и ответов - придётся переписывать все тесты + сделать для каждого теста свой мок БД
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			recorder := httptest.NewRecorder()
-			request := httptest.NewRequest(tt.args.method, "/", strings.NewReader(tt.args.url))
-			mockHandler.ShortenURL(recorder, request)
-			result := recorder.Result()
-			defer result.Body.Close() //Важно - не забывать закрывать!
+		handler.GetShURLsByUserID(w, req)
 
-			require.Equal(t, tt.want.statusCode, result.StatusCode)
-			if result.StatusCode == http.StatusCreated {
-				//Проверить что в map есть один и только один заданный урл
-				count := 0
-				for entry := range shurlsEntries {
-					if shurlsEntries[entry].ShURL.LongURL == tt.args.url {
-						count++
-					}
-				}
+		resp := w.Result()
+		defer resp.Body.Close()
 
-				assert.Equal(t, 1, count)
-			}
-		})
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+		assert.Equal(t, "application/json", resp.Header.Get("Content-Type"))
+
+		var response []map[string]string
+		err := json.NewDecoder(resp.Body).Decode(&response)
+		require.NoError(t, err)
+		assert.Len(t, response, 2)
+	})
+
+	t.Run("no user ID returns unauthorized", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/api/user/urls", nil)
+		w := httptest.NewRecorder()
+
+		handler.GetShURLsByUserID(w, req)
+
+		resp := w.Result()
+		defer resp.Body.Close()
+
+		assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	})
+
+	t.Run("no URLs for user returns no content", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/api/user/urls", nil)
+		ctx := customcontext.WithUserID(req.Context(), "user2")
+		req = req.WithContext(ctx)
+		w := httptest.NewRecorder()
+
+		handler.GetShURLsByUserID(w, req)
+
+		resp := w.Result()
+		defer resp.Body.Close()
+
+		assert.Equal(t, http.StatusNoContent, resp.StatusCode)
+	})
+}
+
+// TestShURLHandler_DeleteMany - проверка удаления ShURL
+func TestShURLHandler_DeleteMany(t *testing.T) {
+	mockRepo := inmemory.NewInMemoryRepository()
+	service := services.NewShURLService(mockRepo)
+	handler := handlers.NewShURLHandler(service, "localhost:8080")
+
+	// Setup test data
+	ctx := context.Background()
+	urls := []dtos.NewShURL{
+		{LongURL: "https://example1.com", CreatedBy: "user1"},
+		{LongURL: "https://example2.com", CreatedBy: "user1"},
 	}
+
+	var tokens []string
+	for _, url := range urls {
+		shURL, err := service.Create(ctx, url)
+		require.NoError(t, err)
+		tokens = append(tokens, shURL.Token)
+	}
+
+	t.Run("successful delete URLs", func(t *testing.T) {
+		jsonBody, _ := json.Marshal([]string{tokens[0]})
+		req := httptest.NewRequest("DELETE", "/api/user/urls", bytes.NewReader(jsonBody))
+		req.Header.Set("Content-Type", "application/json")
+		ctx := customcontext.WithUserID(req.Context(), "user1")
+		req = req.WithContext(ctx)
+		w := httptest.NewRecorder()
+
+		handler.DeleteMany(w, req)
+
+		resp := w.Result()
+		defer resp.Body.Close()
+
+		assert.Equal(t, http.StatusAccepted, resp.StatusCode)
+	})
+
+	t.Run("no user ID returns unauthorized", func(t *testing.T) {
+		jsonBody, _ := json.Marshal([]string{tokens[0]})
+		req := httptest.NewRequest("DELETE", "/api/user/urls", bytes.NewReader(jsonBody))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		handler.DeleteMany(w, req)
+
+		resp := w.Result()
+		defer resp.Body.Close()
+
+		assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	})
+
+	t.Run("empty body returns bad request", func(t *testing.T) {
+		req := httptest.NewRequest("DELETE", "/api/user/urls", nil)
+		req.Header.Set("Content-Type", "application/json")
+		ctx := customcontext.WithUserID(req.Context(), "user1")
+		req = req.WithContext(ctx)
+		w := httptest.NewRecorder()
+
+		handler.DeleteMany(w, req)
+
+		resp := w.Result()
+		defer resp.Body.Close()
+
+		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	})
+
+	t.Run("wrong method returns method not allowed", func(t *testing.T) {
+		req := httptest.NewRequest("POST", "/api/user/urls", nil)
+		w := httptest.NewRecorder()
+
+		handler.DeleteMany(w, req)
+
+		resp := w.Result()
+		defer resp.Body.Close()
+
+		assert.Equal(t, http.StatusMethodNotAllowed, resp.StatusCode)
+	})
 }

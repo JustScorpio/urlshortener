@@ -1,3 +1,4 @@
+// Пакет postgres содержит репозиторий, который хранит данные базе данных Postgres
 package postgres
 
 import (
@@ -23,12 +24,17 @@ import (
 // 	SslMode  string `json:"sslmode"`
 // }
 
+// PostgresShURLRepository - репозиторий
 type PostgresShURLRepository struct {
 	db *pgx.Conn
 }
 
-var errGone = customerrors.NewGoneError(errors.New("shurl has been deleted"))
+// Кастомные типы ошибок, возвращаемых некоторыми из функций пакета
+var (
+	errGone = customerrors.NewGoneError(errors.New("shurl has been deleted"))
+)
 
+// NewJSONFileShURLRepository - инициализация репозитория
 func NewPostgresShURLRepository(connStr string) (*PostgresShURLRepository, error) {
 	//Если передана пустая строка - парсим конфиг
 	// var conf DBConfiguration
@@ -89,6 +95,7 @@ func NewPostgresShURLRepository(connStr string) (*PostgresShURLRepository, error
 	return &PostgresShURLRepository{db: db}, nil
 }
 
+// GetAll - получить все ShURL
 func (r *PostgresShURLRepository) GetAll(ctx context.Context) ([]entities.ShURL, error) {
 	rows, err := r.db.Query(ctx, "SELECT token, longurl, createdby FROM shurls WHERE deleted = false")
 	if err != nil {
@@ -114,6 +121,7 @@ func (r *PostgresShURLRepository) GetAll(ctx context.Context) ([]entities.ShURL,
 	return shurls, nil
 }
 
+// Get - получить ShURL по ID (токену)
 func (r *PostgresShURLRepository) Get(ctx context.Context, id string) (*entities.ShURL, error) {
 	var shurl entities.ShURL
 	var deleted bool
@@ -129,6 +137,7 @@ func (r *PostgresShURLRepository) Get(ctx context.Context, id string) (*entities
 	return &shurl, nil
 }
 
+// Create - создать ShURL
 func (r *PostgresShURLRepository) Create(ctx context.Context, shurl *entities.ShURL) error {
 	_, err := r.db.Exec(ctx, "INSERT INTO shurls (token, longurl, createdBy) VALUES ($1, $2, $3)", shurl.Token, shurl.LongURL, shurl.CreatedBy)
 	if err != nil {
@@ -137,20 +146,24 @@ func (r *PostgresShURLRepository) Create(ctx context.Context, shurl *entities.Sh
 	return nil
 }
 
+// Update - обновить ShURL
 func (r *PostgresShURLRepository) Update(ctx context.Context, shurl *entities.ShURL) error {
 	_, err := r.db.Exec(ctx, "UPDATE shurls SET longurl = $2, createdby = $3 WHERE token = $1", shurl.Token, shurl.LongURL, shurl.CreatedBy)
 	return err
 }
 
+// Delete - удалить ShURL
 func (r *PostgresShURLRepository) Delete(ctx context.Context, ids []string, userID string) error {
 	_, err := r.db.Exec(ctx, "UPDATE shurls SET deleted = true WHERE token = ANY($1) AND createdby = $2", ids, userID)
 	return err
 }
 
+// CloseConnection - закрыть соединение с базой данных
 func (r *PostgresShURLRepository) CloseConnection() {
 	r.db.Close(context.Background())
 }
 
+// PingDB - проверить подключение к базе данных
 func (r *PostgresShURLRepository) PingDB() bool {
 	err := r.db.Ping(context.Background())
 	return err == nil

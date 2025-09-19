@@ -1,3 +1,4 @@
+// Самый главный пакет
 package main
 
 import (
@@ -16,10 +17,12 @@ import (
 	"github.com/JustScorpio/urlshortener/internal/repository/postgres"
 	"github.com/JustScorpio/urlshortener/internal/services"
 
+	_ "net/http/pprof"
+
 	"github.com/go-chi/chi"
 )
 
-// функция main вызывается автоматически при запуске приложения
+// main - вызывается автоматически при запуске приложения
 func main() {
 	// обрабатываем аргументы командной строки
 	parseFlags()
@@ -29,7 +32,7 @@ func main() {
 	}
 }
 
-// функция run будет полезна при инициализации зависимостей сервера перед запуском
+// run - функция полезна при инициализации зависимостей сервера перед запуском
 func run() error {
 
 	//Для jsonfile-базы данных берём расположение файла БД из переменной окружения. Иначе - из аргумента

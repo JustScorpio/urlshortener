@@ -1,3 +1,4 @@
+// Пакет sqlite содержит репозиторий, который хранит данные в SQLite-базе данных
 package sqlite
 
 import (
@@ -15,19 +16,27 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+// configContent - содержимое конфигурационного файла подключения к базе данных
+//
 //go:embed config.json
 var configContent []byte
 
+// DBConfiguration - конфигурация базы данных считанная из файла
 type DBConfiguration struct {
 	Path string `json:"path"`
 }
 
+// SQLiteShURLRepository - репозиторий
 type SQLiteShURLRepository struct {
 	db *sql.DB
 }
 
-var errGone = customerrors.NewGoneError(errors.New("shurl has been deleted"))
+// Кастомные типы ошибок, возвращаемых некоторыми из функций пакета
+var (
+	errGone = customerrors.NewGoneError(errors.New("shurl has been deleted"))
+)
 
+// NewSQLiteShURLRepository - инициализация репозитория
 func NewSQLiteShURLRepository() (*SQLiteShURLRepository, error) {
 	//TODO: задействовать context при создании, подключении БД
 
@@ -73,6 +82,7 @@ func NewSQLiteShURLRepository() (*SQLiteShURLRepository, error) {
 	return &SQLiteShURLRepository{db: db}, nil
 }
 
+// GetAll - получить все ShURL
 func (r *SQLiteShURLRepository) GetAll(ctx context.Context) ([]entities.ShURL, error) {
 	rows, err := r.db.QueryContext(ctx, "SELECT token, longurl, createdby FROM shurls WHERE deleted = FALSE")
 	if err != nil {
@@ -102,6 +112,7 @@ func (r *SQLiteShURLRepository) GetAll(ctx context.Context) ([]entities.ShURL, e
 	return shurls, nil
 }
 
+// Get - получить ShURL по ID (токену)
 func (r *SQLiteShURLRepository) Get(ctx context.Context, id string) (*entities.ShURL, error) {
 	var shurl entities.ShURL
 	var deleted bool
@@ -121,6 +132,7 @@ func (r *SQLiteShURLRepository) Get(ctx context.Context, id string) (*entities.S
 	return &shurl, nil
 }
 
+// Create - создать ShURL
 func (r *SQLiteShURLRepository) Create(ctx context.Context, shurl *entities.ShURL) error {
 	_, err := r.db.ExecContext(
 		ctx,
@@ -132,6 +144,7 @@ func (r *SQLiteShURLRepository) Create(ctx context.Context, shurl *entities.ShUR
 	return err
 }
 
+// Update - обновить ShURL
 func (r *SQLiteShURLRepository) Update(ctx context.Context, shurl *entities.ShURL) error {
 	_, err := r.db.ExecContext(
 		ctx,
@@ -143,15 +156,18 @@ func (r *SQLiteShURLRepository) Update(ctx context.Context, shurl *entities.ShUR
 	return err
 }
 
+// Delete - удалить ShURL
 func (r *SQLiteShURLRepository) Delete(ctx context.Context, ids []string, userID string) error {
 	_, err := r.db.ExecContext(ctx, "UPDATE shurls SET deleted = TRUE WHERE token = ANY(?) AND createdby = ?", ids, userID)
 	return err
 }
 
+// CloseConnection - закрыть соединение с базой данных
 func (r *SQLiteShURLRepository) CloseConnection() {
 	r.db.Close()
 }
 
+// PingDB - проверить подключение к базе данных
 func (r *SQLiteShURLRepository) PingDB() bool {
 	err := r.db.Ping()
 	return err == nil

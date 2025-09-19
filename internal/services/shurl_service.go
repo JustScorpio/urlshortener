@@ -1,3 +1,4 @@
+// Пакет services содержит структуры и методы, реализующие бизнес-логику приложения
 package services
 
 import (
@@ -11,14 +12,17 @@ import (
 	"github.com/pkg/errors"
 )
 
+// ShURLService - сервис-укорачиватель ссылок
 type ShURLService struct {
 	//ВАЖНО: В Go интерфейсы УЖЕ ЯВЛЯЮТСЯ ССЫЛОЧНЫМ ТИПОМ (под капотом — указатель на структуру)
 	repo      repository.IRepository[entities.ShURL]
 	taskQueue chan Task // канал-очередь задач
 }
 
+// TaskType - алиас вокруг int, для описания типов задачи в очереди задач
 type TaskType int
 
+// Типы задач TaskType
 const (
 	TaskGetAll TaskType = iota
 	TaskGet
@@ -28,6 +32,7 @@ const (
 	TaskGetByUserID
 )
 
+// Task - задача в очереди задач на обработку сервисом
 type Task struct {
 	Type     TaskType
 	Context  context.Context
@@ -35,13 +40,18 @@ type Task struct {
 	ResultCh chan TaskResult
 }
 
+// TaskResult - результат обработки задачи Task
 type TaskResult struct {
 	Result interface{}
 	Err    error
 }
 
-var alreadyExistsError = customerrors.NewAlreadyExistsError(errors.New("shurl already exists"))
+// Кастомные типы ошибок, возвращаемых некоторыми из функций пакета
+var (
+	alreadyExistsError = customerrors.NewAlreadyExistsError(errors.New("shurl already exists"))
+)
 
+// NewShURLService - инициализация сервиса-укорачивателя ссылок
 func NewShURLService(repo repository.IRepository[entities.ShURL]) *ShURLService {
 	service := &ShURLService{
 		repo:      repo,
@@ -53,6 +63,7 @@ func NewShURLService(repo repository.IRepository[entities.ShURL]) *ShURLService 
 	return service
 }
 
+// taskProcessor - обработчик очереди задач в составе ShURLService
 func (s *ShURLService) taskProcessor() {
 	for task := range s.taskQueue {
 
@@ -99,7 +110,7 @@ func (s *ShURLService) taskProcessor() {
 	}
 }
 
-// Поставить задачу в очередь
+// enqueueTask - поставить задачу в очередь
 func (s *ShURLService) enqueueTask(task Task) (interface{}, error) {
 	if task.ResultCh == nil {
 		task.ResultCh = make(chan TaskResult, 1)
@@ -115,6 +126,7 @@ func (s *ShURLService) enqueueTask(task Task) (interface{}, error) {
 	}
 }
 
+// GetAll - получить все ShURL
 func (s *ShURLService) GetAll(ctx context.Context) ([]entities.ShURL, error) {
 	res, err := s.enqueueTask(Task{
 		Type:    TaskGetAll,
@@ -124,6 +136,7 @@ func (s *ShURLService) GetAll(ctx context.Context) ([]entities.ShURL, error) {
 	return res.([]entities.ShURL), err
 }
 
+// Get - получить ShURL по ID (токену)
 func (s *ShURLService) Get(ctx context.Context, token string) (*entities.ShURL, error) {
 	res, err := s.enqueueTask(Task{
 		Type:    TaskGet,
@@ -134,6 +147,7 @@ func (s *ShURLService) Get(ctx context.Context, token string) (*entities.ShURL, 
 	return res.(*entities.ShURL), err
 }
 
+// Create - создать ShURL
 func (s *ShURLService) Create(ctx context.Context, newURL dtos.NewShURL) (*entities.ShURL, error) {
 	res, err := s.enqueueTask(Task{
 		Type:    TaskCreate,
@@ -144,6 +158,43 @@ func (s *ShURLService) Create(ctx context.Context, newURL dtos.NewShURL) (*entit
 	return res.(*entities.ShURL), err
 }
 
+// Update - обновить ShURL
+// func (s *ShURLService) Update(ctx context.Context, shurl *entities.ShURL) error {
+// 	_, err := s.enqueueTask(Task{
+// 		Type:    TaskUpdate,
+// 		Context: ctx,
+// 		Payload: shurl,
+// 	})
+
+// 	return err
+// }
+
+// Delete - удалить ShURL
+func (s *ShURLService) Delete(ctx context.Context, tokens []string, userID string) error {
+	_, err := s.enqueueTask(Task{
+		Type:    TaskDelete,
+		Context: ctx,
+		Payload: struct {
+			tokens []string
+			userID string
+		}{tokens, userID},
+	})
+
+	return err
+}
+
+// GetAllShURLsByUserID - получить все ShURL конкретного пользователя
+func (s *ShURLService) GetAllShURLsByUserID(ctx context.Context, userID string) ([]entities.ShURL, error) {
+	res, err := s.enqueueTask(Task{
+		Type:    TaskGetByUserID,
+		Context: ctx,
+		Payload: userID,
+	})
+
+	return res.([]entities.ShURL), err
+}
+
+// create - создать ShURL (инкапсулирует все проверки бизнес-логику)
 func (s *ShURLService) create(ctx context.Context, newURL dtos.NewShURL) (*entities.ShURL, error) {
 	// Проверка наличие урла в БД
 	existedURLs, err := s.repo.GetAll(ctx)
@@ -182,39 +233,7 @@ func (s *ShURLService) create(ctx context.Context, newURL dtos.NewShURL) (*entit
 	return &shurl, nil
 }
 
-// func (s *ShURLService) Update(ctx context.Context, shurl *entities.ShURL) error {
-// 	_, err := s.enqueueTask(Task{
-// 		Type:    TaskUpdate,
-// 		Context: ctx,
-// 		Payload: shurl,
-// 	})
-
-// 	return err
-// }
-
-func (s *ShURLService) Delete(ctx context.Context, tokens []string, userID string) error {
-	_, err := s.enqueueTask(Task{
-		Type:    TaskDelete,
-		Context: ctx,
-		Payload: struct {
-			tokens []string
-			userID string
-		}{tokens, userID},
-	})
-
-	return err
-}
-
-func (s *ShURLService) GetAllShURLsByUserID(ctx context.Context, userID string) ([]entities.ShURL, error) {
-	res, err := s.enqueueTask(Task{
-		Type:    TaskGetByUserID,
-		Context: ctx,
-		Payload: userID,
-	})
-
-	return res.([]entities.ShURL), err
-}
-
+// GetAllShURLsByUserID - получить все ShURL конкретного пользователя (инкапсулирует все проверки бизнес-логику)
 func (s *ShURLService) getAllByUserID(ctx context.Context, userID string) ([]entities.ShURL, error) {
 	allShURLs, err := s.repo.GetAll(ctx)
 	if err != nil {
