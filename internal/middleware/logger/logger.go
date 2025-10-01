@@ -41,7 +41,7 @@ func LoggingMiddleware(logger *zap.Logger) func(http.Handler) http.Handler {
 			start := time.Now()
 
 			// Создаем обертку для ResponseWriter, чтобы получить статус
-			rw := &responseWriter{w, http.StatusOK, 0, ""}
+			rw := &responseWriter{w, "", http.StatusOK, 0}
 
 			// Пропускаем запрос дальше
 			next.ServeHTTP(rw, r)
@@ -68,10 +68,10 @@ func LoggingMiddleware(logger *zap.Logger) func(http.Handler) http.Handler {
 
 // responseWriter - обертка (встраивание) для ResponseWriter
 type responseWriter struct {
-	http.ResponseWriter // встраиваем оригинальный http.ResponseWriter
-	status              int
-	size                int
-	body                string
+	http.ResponseWriter
+	body   string
+	status int
+	size   int
 }
 
 // Write - реализация интерфейса io.Writer. Осуществляет перенаправление данных записи через gzip-компрессор вместо непосредственной записи в HTTP-ответ

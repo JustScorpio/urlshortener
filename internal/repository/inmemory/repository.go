@@ -20,9 +20,9 @@ var (
 // InMemoryRepository - репозиторий
 // BUG: проще и эффективнее использовать слайс расширенных структур с меткой Deleted как в репозитории jsonfile
 type InMemoryRepository struct {
-	mu            sync.RWMutex
 	shURLs        map[string]entities.ShURL
 	deletedShURLs map[string]entities.ShURL
+	mu            sync.RWMutex
 }
 
 // NewInMemoryRepository - инициализация репозитория

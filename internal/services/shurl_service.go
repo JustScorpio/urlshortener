@@ -34,10 +34,10 @@ const (
 
 // Task - задача в очереди задач на обработку сервисом
 type Task struct {
-	Type     TaskType
 	Context  context.Context
 	Payload  interface{}
 	ResultCh chan TaskResult
+	Type     TaskType
 }
 
 // TaskResult - результат обработки задачи Task
@@ -84,8 +84,8 @@ func (s *ShURLService) taskProcessor() {
 			err = s.repo.Update(task.Context, shURL)
 		case TaskDelete:
 			payload := task.Payload.(struct {
-				tokens []string
 				userID string
+				tokens []string
 			})
 			err = s.repo.Delete(task.Context, payload.tokens, payload.userID)
 		case TaskGetByUserID:
@@ -175,9 +175,9 @@ func (s *ShURLService) Delete(ctx context.Context, tokens []string, userID strin
 		Type:    TaskDelete,
 		Context: ctx,
 		Payload: struct {
-			tokens []string
 			userID string
-		}{tokens, userID},
+			tokens []string
+		}{userID, tokens},
 	})
 
 	return err
