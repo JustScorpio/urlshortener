@@ -6,17 +6,24 @@ import (
 	"strings"
 )
 
-// flagShortenerRouterAddr - содержит адрес и порт для запуска сервера
-var flagShortenerRouterAddr string
+var (
+	// flagShortenerRouterAddr - содержит адрес и порт для запуска сервера
+	flagShortenerRouterAddr string
 
-// flagRedirectRouterAddr - содержит базовый адрес результирующего сокращённого URL (часть перед токеном)
-var flagRedirectRouterAddr string
+	// flagRedirectRouterAddr - содержит базовый адрес результирующего сокращённого URL (часть перед токеном)
+	flagRedirectRouterAddr string
 
-// flagDbFilePath - содержит путь до файла базы данных (для .json БД)
-var flagDBFilePath string
+	// flagDbFilePath - содержит путь до файла базы данных (для .json БД)
+	flagDBFilePath string
 
-// flagDBConnStr - содержит строку подключения к БД (для postgres)
-var flagDBConnStr string
+	// flagDBConnStr - содержит строку подключения к БД (для postgres)
+	flagDBConnStr string
+
+	// переменные 20 инкремента
+	buildVersion = "N/A"
+	buildDate    = "N/A"
+	buildCommit  = "N/A"
+)
 
 // parseFlags - обрабатывает аргументы командной строки и сохраняет их значения в соответствующих переменных
 func parseFlags() {

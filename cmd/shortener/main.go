@@ -24,6 +24,9 @@ import (
 
 // main - вызывается автоматически при запуске приложения
 func main() {
+	// вывести аргументы
+	fmt.Printf("Build version: %s\nBuild date: %s\nBuild commit: %s\n", buildVersion, buildDate, buildCommit)
+
 	// обрабатываем аргументы командной строки
 	parseFlags()
 
