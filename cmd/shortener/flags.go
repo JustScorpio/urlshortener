@@ -1,4 +1,4 @@
-// Самый главный пакет
+// Пакет Main
 package main
 
 import (
@@ -7,22 +7,17 @@ import (
 )
 
 var (
-	// flagShortenerRouterAddr - содержит адрес и порт для запуска сервера
+	// flagShortenerRouterAddr - адрес и порт для запуска сервера
 	flagShortenerRouterAddr string
 
-	// flagRedirectRouterAddr - содержит базовый адрес результирующего сокращённого URL (часть перед токеном)
+	// flagRedirectRouterAddr - базовый адрес сокращённого URL (часть перед токеном)
 	flagRedirectRouterAddr string
 
-	// flagDbFilePath - содержит путь до файла базы данных (для .json БД)
+	// flagDbFilePath - файл базы данных (для .json БД)
 	flagDBFilePath string
 
-	// flagDBConnStr - содержит строку подключения к БД (для postgres)
+	// flagDBConnStr - строка подключения к БД (для postgres)
 	flagDBConnStr string
-
-	// переменные 20 инкремента
-	buildVersion = "N/A"
-	buildDate    = "N/A"
-	buildCommit  = "N/A"
 )
 
 // parseFlags - обрабатывает аргументы командной строки и сохраняет их значения в соответствующих переменных

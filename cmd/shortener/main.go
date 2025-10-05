@@ -1,4 +1,4 @@
-// Самый главный пакет
+// Пакет Main
 package main
 
 import (
@@ -20,6 +20,13 @@ import (
 	_ "net/http/pprof"
 
 	"github.com/go-chi/chi"
+)
+
+var (
+	// build-переменные заполняемые с помощью ldflags -X
+	buildVersion = "N/A"
+	buildDate    = "N/A"
+	buildCommit  = "N/A"
 )
 
 // main - вызывается автоматически при запуске приложения

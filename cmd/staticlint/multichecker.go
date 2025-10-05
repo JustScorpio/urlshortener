@@ -1,8 +1,7 @@
-// Самый главный пакет
+// Пакет Main
 package main
 
 import (
-	"go/ast"
 	"strings"
 
 	"github.com/gordonklaus/ineffassign/pkg/ineffassign"
@@ -66,51 +65,28 @@ import (
 	"honnef.co/go/tools/staticcheck"
 )
 
-// OsExitAnalyzer - кастомный анализатор, запрещает прямой вызов os.Exit из main.go
-var OsExitAnalyzer = &analysis.Analyzer{
-	Name: "osExitAnalyzer",
-	Doc:  "prevents direct calling of os.Exit from main.go",
-	Run:  runOsExitAnalysis,
-}
-
-// OsExitAnalyzer - функция анализатора OsExitAnalyzer, который запрещает прямой вызов os.Exit из main.go
-func runOsExitAnalysis(pass *analysis.Pass) (interface{}, error) {
-	if pass.Pkg.Name() != "main" {
-		return nil, nil
-	}
-
-	for _, file := range pass.Files {
-		ast.Inspect(file, func(node ast.Node) bool {
-			// Проверяем только вызовы функций
-			call, ok := node.(*ast.CallExpr)
-			if !ok {
-				return true
-			}
-
-			// Проверяем, что это селектор (вызов метода/функции из пакета)
-			sel, ok := call.Fun.(*ast.SelectorExpr)
-			if !ok {
-				return true
-			}
-
-			// Проверяем, что это os.Exit
-			if ident, ok := sel.X.(*ast.Ident); ok && ident.Name == "os" && sel.Sel.Name == "Exit" {
-				pass.Reportf(call.Pos(), "os.Exit call detected in main package")
-			}
-
-			return true
-		})
-	}
-	return nil, nil
-}
-
 // Точка входа
 func main() {
-
 	var allAnalyzers []*analysis.Analyzer
 
 	//Стандартные анализаторы go/analysis
-	allAnalyzers = append(allAnalyzers,
+	allAnalyzers = append(allAnalyzers, getStandartAnalyzers()...)
+
+	//Необходимые анализаторы пакета staticcheck
+	allAnalyzers = append(allAnalyzers, getStaticCheckAnalyzers()...)
+
+	// Публичные анализаторы
+	allAnalyzers = append(allAnalyzers, getPublicAnalyzers()...)
+
+	// Кастомные анализаторы
+	allAnalyzers = append(allAnalyzers, getCustomAnalyzers()...)
+
+	multichecker.Main(allAnalyzers...)
+}
+
+// Получить стандартные анализаторы
+func getStandartAnalyzers() []*analysis.Analyzer {
+	return []*analysis.Analyzer{
 		appends.Analyzer,
 		asmdecl.Analyzer,
 		assign.Analyzer,
@@ -162,21 +138,36 @@ func main() {
 		unusedwrite.Analyzer,
 		usesgenerics.Analyzer,
 		waitgroup.Analyzer,
-	)
+	}
+}
+
+// Получить анализаторы пакета staticcheck
+func getStaticCheckAnalyzers() []*analysis.Analyzer {
+
+	var analyzers []*analysis.Analyzer
 
 	//Все SA- анализаторы пакета staticcheck ...и CT1000 (проверка комментариев к пакетам для godoc)
 	for _, analyzer := range staticcheck.Analyzers {
 		// добавляем в массив нужные проверки
 		if strings.HasPrefix(analyzer.Analyzer.Name, "SA") || analyzer.Analyzer.Name == "СТ1000" {
-			allAnalyzers = append(allAnalyzers, analyzer.Analyzer)
+			analyzers = append(analyzers, analyzer.Analyzer)
 		}
 	}
 
-	// Публичные анализаторы
-	allAnalyzers = append(allAnalyzers,
+	return analyzers
+}
+
+// Получить прочие публичные анализаторы
+func getPublicAnalyzers() []*analysis.Analyzer {
+	return []*analysis.Analyzer{
 		ineffassign.Analyzer,
 		errcheck.Analyzer,
-	)
+	}
+}
 
-	multichecker.Main(allAnalyzers...)
+// Получить кастомные анализаторы
+func getCustomAnalyzers() []*analysis.Analyzer {
+	return []*analysis.Analyzer{
+		OsExitAnalyzer,
+	}
 }
