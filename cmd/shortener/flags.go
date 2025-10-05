@@ -1,4 +1,4 @@
-// Самый главный пакет
+// Пакет Main
 package main
 
 import (
@@ -6,17 +6,19 @@ import (
 	"strings"
 )
 
-// flagShortenerRouterAddr - содержит адрес и порт для запуска сервера
-var flagShortenerRouterAddr string
+var (
+	// flagShortenerRouterAddr - адрес и порт для запуска сервера
+	flagShortenerRouterAddr string
 
-// flagRedirectRouterAddr - содержит базовый адрес результирующего сокращённого URL (часть перед токеном)
-var flagRedirectRouterAddr string
+	// flagRedirectRouterAddr - базовый адрес сокращённого URL (часть перед токеном)
+	flagRedirectRouterAddr string
 
-// flagDbFilePath - содержит путь до файла базы данных (для .json БД)
-var flagDBFilePath string
+	// flagDbFilePath - файл базы данных (для .json БД)
+	flagDBFilePath string
 
-// flagDBConnStr - содержит строку подключения к БД (для postgres)
-var flagDBConnStr string
+	// flagDBConnStr - строка подключения к БД (для postgres)
+	flagDBConnStr string
+)
 
 // parseFlags - обрабатывает аргументы командной строки и сохраняет их значения в соответствующих переменных
 func parseFlags() {

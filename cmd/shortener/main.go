@@ -1,4 +1,4 @@
-// Самый главный пакет
+// Пакет Main
 package main
 
 import (
@@ -22,8 +22,18 @@ import (
 	"github.com/go-chi/chi"
 )
 
+var (
+	// build-переменные заполняемые с помощью ldflags -X
+	buildVersion = "N/A"
+	buildDate    = "N/A"
+	buildCommit  = "N/A"
+)
+
 // main - вызывается автоматически при запуске приложения
 func main() {
+	// вывести аргументы
+	fmt.Printf("Build version: %s\nBuild date: %s\nBuild commit: %s\n", buildVersion, buildDate, buildCommit)
+
 	// обрабатываем аргументы командной строки
 	parseFlags()
 

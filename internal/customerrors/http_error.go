@@ -8,8 +8,8 @@ import (
 
 // HTTPError - ошибка-ответ на HTTP-запрос
 type HTTPError struct {
-	Code int   // HTTP-статус код
-	Err  error // Сообщение для клиента
+	Err  error
+	Code int
 }
 
 // Error - Реализация интерфейса error
