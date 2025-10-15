@@ -1,3 +1,4 @@
+// Пакет Main
 package main
 
 import (
@@ -12,6 +13,7 @@ import (
 	"time"
 )
 
+// GetTestCert - получить тестовые сертификат и приватный ключ
 func GetTestCert() (certPEMBytes []byte, privateKeyPEMBytes []byte, err error) {
 	// создаём шаблон сертификата
 	cert := &x509.Certificate{
