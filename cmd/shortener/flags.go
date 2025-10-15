@@ -18,6 +18,9 @@ var (
 
 	// flagDBConnStr - строка подключения к БД (для postgres)
 	flagDBConnStr string
+
+	// flagDBConnStr - включение HTTPS
+	flagEnableHTTPS bool
 )
 
 // parseFlags - обрабатывает аргументы командной строки и сохраняет их значения в соответствующих переменных
@@ -26,6 +29,7 @@ func parseFlags() {
 	flag.StringVar(&flagRedirectRouterAddr, "b", ":8080", "base address and port for shortened URLs")
 	flag.StringVar(&flagDBFilePath, "f", "data/shortener.json", "path to .json database file (only for .json database)")
 	flag.StringVar(&flagDBConnStr, "d", "", "postgresql connection string (only for postgresql)")
+	flag.BoolVar(&flagEnableHTTPS, "s", false, "enable https")
 	flag.Parse()
 
 	flagShortenerRouterAddr = normalizeAddress(flagShortenerRouterAddr)
