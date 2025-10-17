@@ -43,7 +43,17 @@ func main() {
 }
 
 // run - функция полезна при инициализации зависимостей сервера перед запуском
+// Приоритет конфигурации: Переменные окружения > Конфиг > Флаги
 func run() error {
+	//Проверям указан ли конфигурационный файл.
+	if envConfigPath, hasEnv := os.LookupEnv("CONFIG"); hasEnv {
+		flagConfigPath = envConfigPath
+	}
+
+	//ЗАполняем параметры из конфига (но приоритет всё равно за переменными окружения)
+	if flagConfigPath != "" {
+		parseAppConfig(flagConfigPath)
+	}
 
 	//Для jsonfile-базы данных берём расположение файла БД из переменной окружения. Иначе - из аргумента
 	if envDBAddr, hasEnv := os.LookupEnv("FILE_STORAGE_PATH"); hasEnv {
@@ -98,6 +108,20 @@ func run() error {
 		}
 	}
 
+	//При наличии переменной окружения или наличии флага - запускаем на HTTPS.
+	if _, hasEnv := os.LookupEnv("ENABLE_HTTPS"); hasEnv {
+		flagEnableHTTPS = true
+	}
+
+	//Сертификат для HTTPS (общий при разных flagShortenerRouterAddr и flagRedirectRouterAddr)
+	var cert, privateKey []byte
+	if flagEnableHTTPS {
+		cert, privateKey, err = GetTestCert()
+		if err != nil {
+			return err
+		}
+	}
+
 	// Сравниваем нормализованные адреса. Если адрес один - запускаем то и то на одном порту
 	if flagShortenerRouterAddr == flagRedirectRouterAddr {
 		r := chi.NewRouter()
@@ -112,7 +136,12 @@ func run() error {
 		r.Post("/api/shorten/batch", shURLHandler.ShortenURLsBatch)
 		r.Post("/", shURLHandler.ShortenURL)
 		fmt.Println("Running server on", flagShortenerRouterAddr)
-		return http.ListenAndServe(flagShortenerRouterAddr, r)
+
+		if flagEnableHTTPS {
+			return http.ListenAndServeTLS(flagShortenerRouterAddr, string(cert), string(privateKey), r)
+		} else {
+			return http.ListenAndServe(flagShortenerRouterAddr, r)
+		}
 	}
 
 	// Если разные - разные сервера для разных хэндлеров в разных горутинах
@@ -137,12 +166,20 @@ func run() error {
 
 	go func() {
 		fmt.Println("Running short-to-long redirect server on", flagRedirectRouterAddr)
-		errCh <- http.ListenAndServe(flagRedirectRouterAddr, redirectRouter)
+		if flagEnableHTTPS {
+			errCh <- http.ListenAndServeTLS(flagRedirectRouterAddr, string(cert), string(privateKey), redirectRouter)
+		} else {
+			errCh <- http.ListenAndServe(flagRedirectRouterAddr, redirectRouter)
+		}
 	}()
 
 	go func() {
 		fmt.Println("Running URL shortener on", flagShortenerRouterAddr)
-		errCh <- http.ListenAndServe(flagShortenerRouterAddr, shortenerRouter)
+		if flagEnableHTTPS {
+			errCh <- http.ListenAndServeTLS(flagShortenerRouterAddr, string(cert), string(privateKey), shortenerRouter)
+		} else {
+			errCh <- http.ListenAndServe(flagShortenerRouterAddr, shortenerRouter)
+		}
 	}()
 
 	// Блокируем основную горутину и обрабатываем ошибки
