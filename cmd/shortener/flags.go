@@ -21,6 +21,9 @@ var (
 
 	// flagDBConnStr - включение HTTPS
 	flagEnableHTTPS bool
+
+	// flagConfigPath - путь до конфигурационного файла
+	flagConfigPath string
 )
 
 // parseFlags - обрабатывает аргументы командной строки и сохраняет их значения в соответствующих переменных
@@ -30,6 +33,7 @@ func parseFlags() {
 	flag.StringVar(&flagDBFilePath, "f", "data/shortener.json", "path to .json database file (only for .json database)")
 	flag.StringVar(&flagDBConnStr, "d", "", "postgresql connection string (only for postgresql)")
 	flag.BoolVar(&flagEnableHTTPS, "s", false, "enable https")
+	flag.StringVar(&flagConfigPath, "c", "", "path to application config file")
 	flag.Parse()
 
 	flagShortenerRouterAddr = normalizeAddress(flagShortenerRouterAddr)

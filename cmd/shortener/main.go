@@ -43,7 +43,17 @@ func main() {
 }
 
 // run - функция полезна при инициализации зависимостей сервера перед запуском
+// Приоритет конфигурации: Переменные окружения > Конфиг > Флаги
 func run() error {
+	//Проверям указан ли конфигурационный файл.
+	if envConfigPath, hasEnv := os.LookupEnv("CONFIG"); hasEnv {
+		flagConfigPath = envConfigPath
+	}
+
+	//ЗАполняем параметры из конфига (но приоритет всё равно за переменными окружения)
+	if flagConfigPath != "" {
+		parseAppConfig(flagConfigPath)
+	}
 
 	//Для jsonfile-базы данных берём расположение файла БД из переменной окружения. Иначе - из аргумента
 	if envDBAddr, hasEnv := os.LookupEnv("FILE_STORAGE_PATH"); hasEnv {
