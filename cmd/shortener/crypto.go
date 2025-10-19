@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
@@ -13,8 +14,8 @@ import (
 	"time"
 )
 
-// GetTestCert - получить тестовые сертификат и приватный ключ
-func GetTestCert() (certPEMBytes []byte, privateKeyPEMBytes []byte, err error) {
+// GetTestTlsConfig - получить тестовые сертификат и приватный ключ
+func GetTestTlsConfig() (tlsConfig *tls.Config, err error) {
 	// создаём шаблон сертификата
 	cert := &x509.Certificate{
 		// указываем уникальный номер сертификата
@@ -41,13 +42,13 @@ func GetTestCert() (certPEMBytes []byte, privateKeyPEMBytes []byte, err error) {
 	// Для генерации ключа и сертификата используется rand.Reader в качестве источника случайных данных
 	privateKey, err := rsa.GenerateKey(rand.Reader, 4096)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	// создаём сертификат x.509
 	certBytes, err := x509.CreateCertificate(rand.Reader, cert, cert, &privateKey.PublicKey, privateKey)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	// кодируем сертификат и ключ в формате PEM, который
@@ -64,5 +65,14 @@ func GetTestCert() (certPEMBytes []byte, privateKeyPEMBytes []byte, err error) {
 		Bytes: x509.MarshalPKCS1PrivateKey(privateKey),
 	})
 
-	return certPEM.Bytes(), privateKeyPEM.Bytes(), nil
+	// Загружаем сертификат и ключ
+	tlscert, err := tls.X509KeyPair(certPEM.Bytes(), privateKeyPEM.Bytes())
+	if err != nil {
+		return nil, err
+	}
+
+	return &tls.Config{
+		Certificates: []tls.Certificate{tlscert},
+		MinVersion:   tls.VersionTLS12, // минимальная безопасная версия
+	}, nil
 }

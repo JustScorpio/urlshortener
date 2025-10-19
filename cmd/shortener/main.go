@@ -3,6 +3,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"log"
 	"net/http"
@@ -56,7 +57,10 @@ func run() error {
 
 	//Заполняем параметры из конфига (но приоритет всё равно за переменными окружения)
 	if flagConfigPath != "" {
-		parseAppConfig(flagConfigPath)
+		err := parseAppConfig(flagConfigPath)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	//Для jsonfile-базы данных берём расположение файла БД из переменной окружения. Иначе - из аргумента
@@ -118,9 +122,9 @@ func run() error {
 	}
 
 	//Сертификат для HTTPS (общий при разных flagShortenerRouterAddr и flagRedirectRouterAddr)
-	var cert, privateKey []byte
+	var tlsConfig *tls.Config
 	if flagEnableHTTPS {
-		cert, privateKey, err = GetTestCert()
+		tlsConfig, err = GetTestTlsConfig()
 		if err != nil {
 			return err
 		}
@@ -152,12 +156,8 @@ func run() error {
 		// Запуск сервера в горутине
 		serverErr := make(chan error, 1)
 		go func() {
-			fmt.Println("Running server on", flagShortenerRouterAddr)
-			if flagEnableHTTPS {
-				serverErr <- server.ListenAndServeTLS(string(cert), string(privateKey))
-			} else {
-				serverErr <- server.ListenAndServe()
-			}
+			fmt.Println("Starting server...")
+			serverErr <- runServer(server, tlsConfig)
 		}()
 
 		// Ожидание сигнала остановки или ошибки сервера
@@ -190,35 +190,20 @@ func run() error {
 	shortenerRouter.Post("/", shURLHandler.ShortenURL)
 
 	// Создаем серверы
-	redirectServer := &http.Server{
-		Addr:    flagRedirectRouterAddr,
-		Handler: redirectRouter,
-	}
-
-	shortenerServer := &http.Server{
-		Addr:    flagShortenerRouterAddr,
-		Handler: shortenerRouter,
-	}
+	redirectServer := createServer(flagRedirectRouterAddr, redirectRouter, tlsConfig)
+	shortenerServer := createServer(flagShortenerRouterAddr, shortenerRouter, tlsConfig)
 
 	// Запуск серверов в горутинах
 	serverErr := make(chan error, 2)
 
 	go func() {
-		fmt.Println("Running short-to-long redirect server on", flagRedirectRouterAddr)
-		if flagEnableHTTPS {
-			serverErr <- redirectServer.ListenAndServeTLS(string(cert), string(privateKey))
-		} else {
-			serverErr <- redirectServer.ListenAndServe()
-		}
+		fmt.Println("Starting short-to-long server...")
+		serverErr <- runServer(redirectServer, tlsConfig)
 	}()
 
 	go func() {
-		fmt.Println("Running URL shortener on", flagShortenerRouterAddr)
-		if flagEnableHTTPS {
-			serverErr <- shortenerServer.ListenAndServeTLS(string(cert), string(privateKey))
-		} else {
-			serverErr <- shortenerServer.ListenAndServe()
-		}
+		fmt.Println("Starting URL shortener...")
+		serverErr <- runServer(shortenerServer, tlsConfig)
 	}()
 
 	// Ожидание сигнала остановки или ошибки сервера
@@ -232,7 +217,33 @@ func run() error {
 	return gracefulShutdown(shURLService, redirectServer, shortenerServer)
 }
 
-// gracefulShutdown - graceful shutdown для одного сервера
+// createServer - создает и настраивает HTTP сервер
+func createServer(addr string, handler http.Handler, tlsConfig *tls.Config) *http.Server {
+	server := &http.Server{
+		Addr:    addr,
+		Handler: handler,
+	}
+
+	if tlsConfig != nil {
+		server.TLSConfig = tlsConfig
+	}
+
+	return server
+}
+
+// runServer - запускает сервер в горутине и возвращает канал с ошибкой
+func runServer(server *http.Server, tlsConfig *tls.Config) error {
+	fmt.Printf("Running server on %s\n", server.Addr)
+
+	if tlsConfig != nil {
+		server.TLSConfig = tlsConfig
+		return server.ListenAndServeTLS("", "")
+	}
+
+	return server.ListenAndServe()
+}
+
+// gracefulShutdown - graceful shutdown приложения
 func gracefulShutdown(service *services.ShURLService, servers ...*http.Server) error {
 	fmt.Println("Starting graceful shutdown...")
 

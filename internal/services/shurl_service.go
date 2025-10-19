@@ -74,7 +74,17 @@ func (s *ShURLService) taskProcessor() {
 		var result interface{}
 		var err error
 
-		//TODO: проверка isShuttingDown (чтобы прервать задачи которые уже в очереди)
+		//Если происходит shutdown - прерываем задачи которые уже стоят в очереди
+		if s.isShuttingDown.Load() {
+			if task.ResultCh != nil {
+				task.ResultCh <- TaskResult{
+					Err: serviceUnavailableError,
+				}
+				close(task.ResultCh)
+			}
+
+			continue
+		}
 
 		switch task.Type {
 		case TaskGetAll:
