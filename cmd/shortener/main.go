@@ -2,10 +2,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/JustScorpio/urlshortener/internal/handlers"
 	"github.com/JustScorpio/urlshortener/internal/middleware/auth"
@@ -50,7 +54,7 @@ func run() error {
 		flagConfigPath = envConfigPath
 	}
 
-	//ЗАполняем параметры из конфига (но приоритет всё равно за переменными окружения)
+	//Заполняем параметры из конфига (но приоритет всё равно за переменными окружения)
 	if flagConfigPath != "" {
 		parseAppConfig(flagConfigPath)
 	}
@@ -122,6 +126,10 @@ func run() error {
 		}
 	}
 
+	// Канал для получения сигналов ОС
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
+
 	// Сравниваем нормализованные адреса. Если адрес один - запускаем то и то на одном порту
 	if flagShortenerRouterAddr == flagRedirectRouterAddr {
 		r := chi.NewRouter()
@@ -135,13 +143,32 @@ func run() error {
 		r.Post("/api/shorten", shURLHandler.ShortenURL)
 		r.Post("/api/shorten/batch", shURLHandler.ShortenURLsBatch)
 		r.Post("/", shURLHandler.ShortenURL)
-		fmt.Println("Running server on", flagShortenerRouterAddr)
 
-		if flagEnableHTTPS {
-			return http.ListenAndServeTLS(flagShortenerRouterAddr, string(cert), string(privateKey), r)
-		} else {
-			return http.ListenAndServe(flagShortenerRouterAddr, r)
+		server := &http.Server{
+			Addr:    flagShortenerRouterAddr,
+			Handler: r,
 		}
+
+		// Запуск сервера в горутине
+		serverErr := make(chan error, 1)
+		go func() {
+			fmt.Println("Running server on", flagShortenerRouterAddr)
+			if flagEnableHTTPS {
+				serverErr <- server.ListenAndServeTLS(string(cert), string(privateKey))
+			} else {
+				serverErr <- server.ListenAndServe()
+			}
+		}()
+
+		// Ожидание сигнала остановки или ошибки сервера
+		select {
+		case <-stop:
+			fmt.Println("Received shutdown signal")
+		case err := <-serverErr:
+			fmt.Printf("Server error: %v\n", err)
+		}
+
+		return gracefulShutdown(shURLService, server)
 	}
 
 	// Если разные - разные сервера для разных хэндлеров в разных горутинах
@@ -149,7 +176,7 @@ func run() error {
 	redirectRouter.Use(auth.AuthMiddleware()) //Нужно при обращении к /api/user/urls (GET и DELETE)
 	redirectRouter.Use(logger.LoggingMiddleware(zapLogger))
 	redirectRouter.Use(gzipencoder.GZIPEncodingMiddleware())
-	redirectRouter.Get("/ping", pingFunc) //Дублируется в обоих роутерах
+	redirectRouter.Get("/ping", pingFunc)
 	redirectRouter.Get("/api/user/urls", shURLHandler.GetShURLsByUserID)
 	redirectRouter.Delete("/api/user/urls", shURLHandler.DeleteMany)
 	redirectRouter.Get("/{token}", shURLHandler.GetFullURL)
@@ -159,29 +186,74 @@ func run() error {
 	shortenerRouter.Use(gzipencoder.GZIPEncodingMiddleware())
 	shortenerRouter.Post("/api/shorten", shURLHandler.ShortenURL)
 	shortenerRouter.Post("/api/shorten/batch", shURLHandler.ShortenURLsBatch)
-	redirectRouter.Get("/ping", pingFunc) //Дублируется в обоих роутерах
+	shortenerRouter.Get("/ping", pingFunc)
 	shortenerRouter.Post("/", shURLHandler.ShortenURL)
 
-	errCh := make(chan error)
+	// Создаем серверы
+	redirectServer := &http.Server{
+		Addr:    flagRedirectRouterAddr,
+		Handler: redirectRouter,
+	}
+
+	shortenerServer := &http.Server{
+		Addr:    flagShortenerRouterAddr,
+		Handler: shortenerRouter,
+	}
+
+	// Запуск серверов в горутинах
+	serverErr := make(chan error, 2)
 
 	go func() {
 		fmt.Println("Running short-to-long redirect server on", flagRedirectRouterAddr)
 		if flagEnableHTTPS {
-			errCh <- http.ListenAndServeTLS(flagRedirectRouterAddr, string(cert), string(privateKey), redirectRouter)
+			serverErr <- redirectServer.ListenAndServeTLS(string(cert), string(privateKey))
 		} else {
-			errCh <- http.ListenAndServe(flagRedirectRouterAddr, redirectRouter)
+			serverErr <- redirectServer.ListenAndServe()
 		}
 	}()
 
 	go func() {
 		fmt.Println("Running URL shortener on", flagShortenerRouterAddr)
 		if flagEnableHTTPS {
-			errCh <- http.ListenAndServeTLS(flagShortenerRouterAddr, string(cert), string(privateKey), shortenerRouter)
+			serverErr <- shortenerServer.ListenAndServeTLS(string(cert), string(privateKey))
 		} else {
-			errCh <- http.ListenAndServe(flagShortenerRouterAddr, shortenerRouter)
+			serverErr <- shortenerServer.ListenAndServe()
 		}
 	}()
 
-	// Блокируем основную горутину и обрабатываем ошибки
-	return <-errCh
+	// Ожидание сигнала остановки или ошибки сервера
+	select {
+	case <-stop:
+		fmt.Println("Received shutdown signal")
+	case err := <-serverErr:
+		fmt.Printf("Server error: %v\n", err)
+	}
+
+	return gracefulShutdown(shURLService, redirectServer, shortenerServer)
+}
+
+// gracefulShutdown - graceful shutdown для одного сервера
+func gracefulShutdown(service *services.ShURLService, servers ...*http.Server) error {
+	fmt.Println("Starting graceful shutdown...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	// Останавливаем HTTP сервера
+	for i, server := range servers {
+		if server != nil {
+			if err := server.Shutdown(ctx); err != nil {
+				fmt.Printf("Server %d shutdown error: %v\n", i, err)
+			} else {
+				fmt.Printf("Server %d stopped\n", i)
+			}
+		}
+	}
+
+	// Останавливаем сервис
+	service.Shutdown()
+	fmt.Println("Service shutdown completed")
+
+	fmt.Println("Graceful shutdown finished")
+	return nil
 }

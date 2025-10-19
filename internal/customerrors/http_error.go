@@ -25,7 +25,7 @@ func NewHTTPError(err error, code int) error {
 	}
 }
 
-// NewHTTPError - создать ошибку с кодом 409
+// NewAlreadyExistsError - создать ошибку с кодом 409
 func NewAlreadyExistsError(err error) error {
 	return &HTTPError{
 		Code: http.StatusConflict,
@@ -33,7 +33,7 @@ func NewAlreadyExistsError(err error) error {
 	}
 }
 
-// NewHTTPError - создать ошибку с кодом 405
+// NewNotAllowedError - создать ошибку с кодом 405
 func NewNotAllowedError(err error) error {
 	return &HTTPError{
 		Code: http.StatusMethodNotAllowed,
@@ -41,7 +41,7 @@ func NewNotAllowedError(err error) error {
 	}
 }
 
-// NewHTTPError - создать ошибку с кодом 410
+// NewGoneError - создать ошибку с кодом 410
 func NewGoneError(err error) error {
 	return &HTTPError{
 		Code: http.StatusGone,
@@ -49,10 +49,18 @@ func NewGoneError(err error) error {
 	}
 }
 
-// NewHTTPError - создать ошибку с кодом 404
+// NewNotFoundError - создать ошибку с кодом 404
 func NewNotFoundError(err error) error {
 	return &HTTPError{
 		Code: http.StatusNotFound,
+		Err:  err,
+	}
+}
+
+// NewHTTPError - создать ошибку с кодом 503
+func NewServiceUnavailableError(err error) error {
+	return &HTTPError{
+		Code: http.StatusServiceUnavailable,
 		Err:  err,
 	}
 }
