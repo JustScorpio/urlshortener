@@ -124,7 +124,7 @@ func run() error {
 	//Сертификат для HTTPS (общий при разных flagShortenerRouterAddr и flagRedirectRouterAddr)
 	var tlsConfig *tls.Config
 	if flagEnableHTTPS {
-		tlsConfig, err = GetTestTlsConfig()
+		tlsConfig, err = GetTestTLSConfig()
 		if err != nil {
 			return err
 		}

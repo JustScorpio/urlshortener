@@ -14,8 +14,8 @@ import (
 	"time"
 )
 
-// GetTestTlsConfig - получить тестовые сертификат и приватный ключ
-func GetTestTlsConfig() (tlsConfig *tls.Config, err error) {
+// GetTestTLSConfig - получить тестовые сертификат и приватный ключ
+func GetTestTLSConfig() (tlsConfig *tls.Config, err error) {
 	// создаём шаблон сертификата
 	cert := &x509.Certificate{
 		// указываем уникальный номер сертификата
