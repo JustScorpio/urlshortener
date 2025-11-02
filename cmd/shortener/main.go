@@ -2,10 +2,15 @@
 package main
 
 import (
+	"context"
+	"crypto/tls"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/JustScorpio/urlshortener/internal/handlers"
 	"github.com/JustScorpio/urlshortener/internal/middleware/auth"
@@ -43,7 +48,20 @@ func main() {
 }
 
 // run - функция полезна при инициализации зависимостей сервера перед запуском
+// Приоритет конфигурации: Переменные окружения > Конфиг > Флаги
 func run() error {
+	//Проверям указан ли конфигурационный файл.
+	if envConfigPath, hasEnv := os.LookupEnv("CONFIG"); hasEnv {
+		flagConfigPath = envConfigPath
+	}
+
+	//Заполняем параметры из конфига (но приоритет всё равно за переменными окружения)
+	if flagConfigPath != "" {
+		err := parseAppConfig(flagConfigPath)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
 
 	//Для jsonfile-базы данных берём расположение файла БД из переменной окружения. Иначе - из аргумента
 	if envDBAddr, hasEnv := os.LookupEnv("FILE_STORAGE_PATH"); hasEnv {
@@ -98,6 +116,24 @@ func run() error {
 		}
 	}
 
+	//При наличии переменной окружения или наличии флага - запускаем на HTTPS.
+	if _, hasEnv := os.LookupEnv("ENABLE_HTTPS"); hasEnv {
+		flagEnableHTTPS = true
+	}
+
+	//Сертификат для HTTPS (общий при разных flagShortenerRouterAddr и flagRedirectRouterAddr)
+	var tlsConfig *tls.Config
+	if flagEnableHTTPS {
+		tlsConfig, err = GetTestTLSConfig()
+		if err != nil {
+			return err
+		}
+	}
+
+	// Канал для получения сигналов ОС
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
+
 	// Сравниваем нормализованные адреса. Если адрес один - запускаем то и то на одном порту
 	if flagShortenerRouterAddr == flagRedirectRouterAddr {
 		r := chi.NewRouter()
@@ -111,8 +147,28 @@ func run() error {
 		r.Post("/api/shorten", shURLHandler.ShortenURL)
 		r.Post("/api/shorten/batch", shURLHandler.ShortenURLsBatch)
 		r.Post("/", shURLHandler.ShortenURL)
-		fmt.Println("Running server on", flagShortenerRouterAddr)
-		return http.ListenAndServe(flagShortenerRouterAddr, r)
+
+		server := &http.Server{
+			Addr:    flagShortenerRouterAddr,
+			Handler: r,
+		}
+
+		// Запуск сервера в горутине
+		serverErr := make(chan error, 1)
+		go func() {
+			fmt.Println("Starting server...")
+			serverErr <- runServer(server, tlsConfig)
+		}()
+
+		// Ожидание сигнала остановки или ошибки сервера
+		select {
+		case <-stop:
+			fmt.Println("Received shutdown signal")
+		case err := <-serverErr:
+			fmt.Printf("Server error: %v\n", err)
+		}
+
+		return gracefulShutdown(shURLService, server)
 	}
 
 	// Если разные - разные сервера для разных хэндлеров в разных горутинах
@@ -120,7 +176,7 @@ func run() error {
 	redirectRouter.Use(auth.AuthMiddleware()) //Нужно при обращении к /api/user/urls (GET и DELETE)
 	redirectRouter.Use(logger.LoggingMiddleware(zapLogger))
 	redirectRouter.Use(gzipencoder.GZIPEncodingMiddleware())
-	redirectRouter.Get("/ping", pingFunc) //Дублируется в обоих роутерах
+	redirectRouter.Get("/ping", pingFunc)
 	redirectRouter.Get("/api/user/urls", shURLHandler.GetShURLsByUserID)
 	redirectRouter.Delete("/api/user/urls", shURLHandler.DeleteMany)
 	redirectRouter.Get("/{token}", shURLHandler.GetFullURL)
@@ -130,21 +186,85 @@ func run() error {
 	shortenerRouter.Use(gzipencoder.GZIPEncodingMiddleware())
 	shortenerRouter.Post("/api/shorten", shURLHandler.ShortenURL)
 	shortenerRouter.Post("/api/shorten/batch", shURLHandler.ShortenURLsBatch)
-	redirectRouter.Get("/ping", pingFunc) //Дублируется в обоих роутерах
+	shortenerRouter.Get("/ping", pingFunc)
 	shortenerRouter.Post("/", shURLHandler.ShortenURL)
 
-	errCh := make(chan error)
+	// Создаем серверы
+	redirectServer := createServer(flagRedirectRouterAddr, redirectRouter, tlsConfig)
+	shortenerServer := createServer(flagShortenerRouterAddr, shortenerRouter, tlsConfig)
+
+	// Запуск серверов в горутинах
+	serverErr := make(chan error, 2)
 
 	go func() {
-		fmt.Println("Running short-to-long redirect server on", flagRedirectRouterAddr)
-		errCh <- http.ListenAndServe(flagRedirectRouterAddr, redirectRouter)
+		fmt.Println("Starting short-to-long server...")
+		serverErr <- runServer(redirectServer, tlsConfig)
 	}()
 
 	go func() {
-		fmt.Println("Running URL shortener on", flagShortenerRouterAddr)
-		errCh <- http.ListenAndServe(flagShortenerRouterAddr, shortenerRouter)
+		fmt.Println("Starting URL shortener...")
+		serverErr <- runServer(shortenerServer, tlsConfig)
 	}()
 
-	// Блокируем основную горутину и обрабатываем ошибки
-	return <-errCh
+	// Ожидание сигнала остановки или ошибки сервера
+	select {
+	case <-stop:
+		fmt.Println("Received shutdown signal")
+	case err := <-serverErr:
+		fmt.Printf("Server error: %v\n", err)
+	}
+
+	return gracefulShutdown(shURLService, redirectServer, shortenerServer)
+}
+
+// createServer - создает и настраивает HTTP сервер
+func createServer(addr string, handler http.Handler, tlsConfig *tls.Config) *http.Server {
+	server := &http.Server{
+		Addr:    addr,
+		Handler: handler,
+	}
+
+	if tlsConfig != nil {
+		server.TLSConfig = tlsConfig
+	}
+
+	return server
+}
+
+// runServer - запускает сервер в горутине и возвращает канал с ошибкой
+func runServer(server *http.Server, tlsConfig *tls.Config) error {
+	fmt.Printf("Running server on %s\n", server.Addr)
+
+	if tlsConfig != nil {
+		server.TLSConfig = tlsConfig
+		return server.ListenAndServeTLS("", "")
+	}
+
+	return server.ListenAndServe()
+}
+
+// gracefulShutdown - graceful shutdown приложения
+func gracefulShutdown(service *services.ShURLService, servers ...*http.Server) error {
+	fmt.Println("Starting graceful shutdown...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	// Останавливаем HTTP сервера
+	for i, server := range servers {
+		if server != nil {
+			if err := server.Shutdown(ctx); err != nil {
+				fmt.Printf("Server %d shutdown error: %v\n", i, err)
+			} else {
+				fmt.Printf("Server %d stopped\n", i)
+			}
+		}
+	}
+
+	// Останавливаем сервис
+	service.Shutdown()
+	fmt.Println("Service shutdown completed")
+
+	fmt.Println("Graceful shutdown finished")
+	return nil
 }

@@ -3,6 +3,8 @@ package services
 
 import (
 	"context"
+	"sync"
+	"sync/atomic"
 
 	"github.com/JustScorpio/urlshortener/internal/customerrors"
 	"github.com/JustScorpio/urlshortener/internal/models/dtos"
@@ -15,8 +17,10 @@ import (
 // ShURLService - сервис-укорачиватель ссылок
 type ShURLService struct {
 	//ВАЖНО: В Go интерфейсы УЖЕ ЯВЛЯЮТСЯ ССЫЛОЧНЫМ ТИПОМ (под капотом — указатель на структуру)
-	repo      repository.IRepository[entities.ShURL]
-	taskQueue chan Task // канал-очередь задач
+	repo           repository.IRepository[entities.ShURL]
+	taskQueue      chan Task // канал-очередь задач
+	tasksInProcess sync.WaitGroup
+	isShuttingDown atomic.Bool //Использование вместо Bool помогает избежать гонки данных при её обновлении
 }
 
 // TaskType - алиас вокруг int, для описания типов задачи в очереди задач
@@ -48,7 +52,8 @@ type TaskResult struct {
 
 // Кастомные типы ошибок, возвращаемых некоторыми из функций пакета
 var (
-	alreadyExistsError = customerrors.NewAlreadyExistsError(errors.New("shurl already exists"))
+	alreadyExistsError      = customerrors.NewAlreadyExistsError(errors.New("shurl already exists"))
+	serviceUnavailableError = customerrors.NewServiceUnavailableError(errors.New("service is shutting down..."))
 )
 
 // NewShURLService - инициализация сервиса-укорачивателя ссылок
@@ -66,9 +71,20 @@ func NewShURLService(repo repository.IRepository[entities.ShURL]) *ShURLService 
 // taskProcessor - обработчик очереди задач в составе ShURLService
 func (s *ShURLService) taskProcessor() {
 	for task := range s.taskQueue {
-
 		var result interface{}
 		var err error
+
+		//Если происходит shutdown - прерываем задачи которые уже стоят в очереди
+		if s.isShuttingDown.Load() {
+			if task.ResultCh != nil {
+				task.ResultCh <- TaskResult{
+					Err: serviceUnavailableError,
+				}
+				close(task.ResultCh)
+			}
+
+			continue
+		}
 
 		switch task.Type {
 		case TaskGetAll:
@@ -112,16 +128,24 @@ func (s *ShURLService) taskProcessor() {
 
 // enqueueTask - поставить задачу в очередь
 func (s *ShURLService) enqueueTask(task Task) (interface{}, error) {
+	// Проверяем, не начался ли shutdown
+	if s.isShuttingDown.Load() {
+		return nil, serviceUnavailableError
+	}
+
 	if task.ResultCh == nil {
 		task.ResultCh = make(chan TaskResult, 1)
 	}
 
+	s.tasksInProcess.Add(1) // Увеличиваем счетчик
 	s.taskQueue <- task
 
 	select {
 	case <-task.Context.Done():
+		s.tasksInProcess.Done() // Уменьшаем счётчик
 		return nil, task.Context.Err()
 	case res := <-task.ResultCh:
+		s.tasksInProcess.Done() // Уменьшаем счётчик
 		return res.Result, res.Err
 	}
 }
@@ -248,4 +272,16 @@ func (s *ShURLService) getAllByUserID(ctx context.Context, userID string) ([]ent
 	}
 
 	return result, nil
+}
+
+// Shutdown - инициирует graceful shutdown сервиса
+func (s *ShURLService) Shutdown() {
+	//Помечаем сервис как завершающий работу
+	s.isShuttingDown.Store(true)
+
+	//Ждем завершения всех задач
+	s.tasksInProcess.Wait()
+
+	//Закрываем очередь
+	close(s.taskQueue)
 }
