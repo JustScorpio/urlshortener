@@ -6,10 +6,12 @@ import (
 	"net/http"
 )
 
+// Middleware проверки что отправитель запроса входит в доверенную подсеть
 type CIDRWhitelistMiddleware struct {
 	allowedNetwork *net.IPNet
 }
 
+// NewCIDRWhitelistMiddleware - создать middleware для проверки что отправитель запроса входит в доверенную подсеть
 func NewCIDRWhitelistMiddleware(allowedCIDR string) (*CIDRWhitelistMiddleware, error) {
 	m := &CIDRWhitelistMiddleware{}
 
@@ -20,6 +22,7 @@ func NewCIDRWhitelistMiddleware(allowedCIDR string) (*CIDRWhitelistMiddleware, e
 	return m, nil
 }
 
+// isIPAllowed - проверить что IP-адрес входит в доверенную подсеть
 func (m *CIDRWhitelistMiddleware) isIPAllowed(ipStr string) bool {
 	ip := net.ParseIP(ipStr)
 	if ip == nil {
