@@ -24,6 +24,9 @@ var (
 
 	// flagConfigPath - путь до конфигурационного файла
 	flagConfigPath string
+
+	// flagTrustedSubnet - адрес доверенного сервера
+	flagTrustedSubnet string
 )
 
 // parseFlags - обрабатывает аргументы командной строки и сохраняет их значения в соответствующих переменных
@@ -34,6 +37,7 @@ func parseFlags() {
 	flag.StringVar(&flagDBConnStr, "d", "", "postgresql connection string (only for postgresql)")
 	flag.BoolVar(&flagEnableHTTPS, "s", false, "enable https")
 	flag.StringVar(&flagConfigPath, "c", "", "path to application config file")
+	flag.StringVar(&flagTrustedSubnet, "t", "", "trusted subnet")
 	flag.Parse()
 
 	flagShortenerRouterAddr = normalizeAddress(flagShortenerRouterAddr)
