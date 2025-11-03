@@ -288,6 +288,39 @@ func (h *ShURLHandler) GetShURLsByUserID(w http.ResponseWriter, r *http.Request)
 	w.Write(jsonData)
 }
 
+// GetStats - получить статистику сервиса
+func (h *ShURLHandler) GetStats(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		// разрешаем только Get-запросы
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	//Не предусмотрено тестами
+	//Только Accept: JSON
+	// contentType := r.Header.Get("Accept")
+	// if contentType != "application/json" {
+	// 	w.WriteHeader(http.StatusBadRequest)
+	// 	return
+	// }
+
+	// Получение сущностей из сервиса
+	stats, err := h.service.GetStats(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	jsonData, err := json.Marshal(stats)
+	if err != nil {
+		return
+	}
+
+	w.Header().Add("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(jsonData)
+}
+
 // DeleteMany - удалить ShURL'ы Пользователя
 func (h *ShURLHandler) DeleteMany(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodDelete {

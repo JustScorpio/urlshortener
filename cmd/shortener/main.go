@@ -14,6 +14,7 @@ import (
 
 	"github.com/JustScorpio/urlshortener/internal/handlers"
 	"github.com/JustScorpio/urlshortener/internal/middleware/auth"
+	"github.com/JustScorpio/urlshortener/internal/middleware/cidr_whitelist"
 	"github.com/JustScorpio/urlshortener/internal/middleware/gzipencoder"
 	"github.com/JustScorpio/urlshortener/internal/middleware/logger"
 	"github.com/JustScorpio/urlshortener/internal/models/entities"
@@ -102,6 +103,15 @@ func run() error {
 	}
 	defer zapLogger.Sync()
 
+	//Инициализация subnet whitelist
+	if trustedSubnet, hasEnv := os.LookupEnv("TRUSTED_SUBNET"); hasEnv {
+		flagTrustedSubnet = trustedSubnet
+	}
+	cidrWhiteList, err := cidr_whitelist.NewCIDRWhitelistMiddleware(flagTrustedSubnet)
+	if err != nil {
+		return err
+	}
+
 	// Берём адрес сервера из переменной окружения. Иначе - из аргумента
 	if envServerAddr, hasEnv := os.LookupEnv("SERVER_ADDRESS"); hasEnv {
 		flagShortenerRouterAddr = normalizeAddress(envServerAddr)
@@ -147,6 +157,7 @@ func run() error {
 		r.Post("/api/shorten", shURLHandler.ShortenURL)
 		r.Post("/api/shorten/batch", shURLHandler.ShortenURLsBatch)
 		r.Post("/", shURLHandler.ShortenURL)
+		r.With(cidrWhiteList.CIDRWhitelistMiddleware()).Get("/api/internal/stats", shURLHandler.GetStats)
 
 		server := &http.Server{
 			Addr:    flagShortenerRouterAddr,
@@ -188,6 +199,7 @@ func run() error {
 	shortenerRouter.Post("/api/shorten/batch", shURLHandler.ShortenURLsBatch)
 	shortenerRouter.Get("/ping", pingFunc)
 	shortenerRouter.Post("/", shURLHandler.ShortenURL)
+	shortenerRouter.With(cidrWhiteList.CIDRWhitelistMiddleware()).Get("/api/internal/stats", shURLHandler.GetStats)
 
 	// Создаем серверы
 	redirectServer := createServer(flagRedirectRouterAddr, redirectRouter, tlsConfig)

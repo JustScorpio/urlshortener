@@ -34,6 +34,7 @@ const (
 	TaskUpdate
 	TaskDelete
 	TaskGetByUserID
+	TaskGetStats
 )
 
 // Task - задача в очереди задач на обработку сервисом
@@ -107,6 +108,8 @@ func (s *ShURLService) taskProcessor() {
 		case TaskGetByUserID:
 			userID := task.Payload.(string)
 			result, err = s.getAllByUserID(task.Context, userID)
+		case TaskGetStats:
+			result, err = s.getStats(task.Context)
 		}
 
 		if task.ResultCh != nil {
@@ -218,7 +221,17 @@ func (s *ShURLService) GetAllShURLsByUserID(ctx context.Context, userID string) 
 	return res.([]entities.ShURL), err
 }
 
-// create - создать ShURL (инкапсулирует все проверки бизнес-логику)
+// GetStats - получить статистику сервиса
+func (s *ShURLService) GetStats(ctx context.Context) (*dtos.Stats, error) {
+	res, err := s.enqueueTask(Task{
+		Type:    TaskGetStats,
+		Context: ctx,
+	})
+
+	return res.(*dtos.Stats), err
+}
+
+// create - создать ShURL (инкапсулирует все проверки и бизнес-логику)
 func (s *ShURLService) create(ctx context.Context, newURL dtos.NewShURL) (*entities.ShURL, error) {
 	// Проверка наличие урла в БД
 	existedURLs, err := s.repo.GetAll(ctx)
@@ -257,7 +270,7 @@ func (s *ShURLService) create(ctx context.Context, newURL dtos.NewShURL) (*entit
 	return &shurl, nil
 }
 
-// GetAllShURLsByUserID - получить все ShURL конкретного пользователя (инкапсулирует все проверки бизнес-логику)
+// GetAllShURLsByUserID - получить все ShURL конкретного пользователя (инкапсулирует все проверки и бизнес-логику)
 func (s *ShURLService) getAllByUserID(ctx context.Context, userID string) ([]entities.ShURL, error) {
 	allShURLs, err := s.repo.GetAll(ctx)
 	if err != nil {
@@ -272,6 +285,27 @@ func (s *ShURLService) getAllByUserID(ctx context.Context, userID string) ([]ent
 	}
 
 	return result, nil
+}
+
+// getStats - получить статистику сервиса (инкапсулирует все проверки и бизнес-логику)
+func (s *ShURLService) getStats(ctx context.Context) (*dtos.Stats, error) {
+
+	allShURLs, err := s.repo.GetAll(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	users := make(map[string]bool)
+	for _, shURL := range allShURLs {
+		users[shURL.CreatedBy] = true
+	}
+
+	result := dtos.Stats{
+		URLsNum:  len(allShURLs),
+		UsersNum: len(users),
+	}
+
+	return &result, nil
 }
 
 // Shutdown - инициирует graceful shutdown сервиса
