@@ -1,5 +1,5 @@
-// Пакет cidr_whitelist содержит middleware и функции для проверки что отправитель запроса входит в доверенную подсеть
-package cidr_whitelist
+// Пакет whitelist содержит middleware и функции для проверки что отправитель запроса входит в доверенную подсеть
+package whitelist
 
 import (
 	"net"

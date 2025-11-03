@@ -14,9 +14,9 @@ import (
 
 	"github.com/JustScorpio/urlshortener/internal/handlers"
 	"github.com/JustScorpio/urlshortener/internal/middleware/auth"
-	"github.com/JustScorpio/urlshortener/internal/middleware/cidr_whitelist"
 	"github.com/JustScorpio/urlshortener/internal/middleware/gzipencoder"
 	"github.com/JustScorpio/urlshortener/internal/middleware/logger"
+	"github.com/JustScorpio/urlshortener/internal/middleware/whitelist"
 	"github.com/JustScorpio/urlshortener/internal/models/entities"
 	"github.com/JustScorpio/urlshortener/internal/repository"
 	"github.com/JustScorpio/urlshortener/internal/repository/jsonfile"
@@ -107,7 +107,7 @@ func run() error {
 	if trustedSubnet, hasEnv := os.LookupEnv("TRUSTED_SUBNET"); hasEnv {
 		flagTrustedSubnet = trustedSubnet
 	}
-	cidrWhiteList, err := cidr_whitelist.NewCIDRWhitelistMiddleware(flagTrustedSubnet)
+	cidrWhiteList, err := whitelist.NewCIDRWhitelistMiddleware(flagTrustedSubnet)
 	if err != nil {
 		return err
 	}
