@@ -6,16 +6,25 @@ import (
 	"crypto/tls"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"github.com/JustScorpio/urlshortener/internal/handlers"
-	"github.com/JustScorpio/urlshortener/internal/middleware/auth"
-	"github.com/JustScorpio/urlshortener/internal/middleware/gzipencoder"
-	"github.com/JustScorpio/urlshortener/internal/middleware/logger"
+	"github.com/JustScorpio/urlshortener/internal/grpc/gen"
+	grpchandlers "github.com/JustScorpio/urlshortener/internal/grpc/handlers"
+	grpcauth "github.com/JustScorpio/urlshortener/internal/grpc/middleware/auth"
+	grpclogger "github.com/JustScorpio/urlshortener/internal/grpc/middleware/logger"
+	grpcwhitelist "github.com/JustScorpio/urlshortener/internal/grpc/middleware/whitelist"
+	"google.golang.org/grpc"
+
+	"github.com/JustScorpio/urlshortener/internal/http/handlers"
+	"github.com/JustScorpio/urlshortener/internal/http/middleware/auth"
+	"github.com/JustScorpio/urlshortener/internal/http/middleware/gzipencoder"
+	"github.com/JustScorpio/urlshortener/internal/http/middleware/logger"
+	"github.com/JustScorpio/urlshortener/internal/http/middleware/whitelist"
 	"github.com/JustScorpio/urlshortener/internal/models/entities"
 	"github.com/JustScorpio/urlshortener/internal/repository"
 	"github.com/JustScorpio/urlshortener/internal/repository/jsonfile"
@@ -50,7 +59,7 @@ func main() {
 // run - функция полезна при инициализации зависимостей сервера перед запуском
 // Приоритет конфигурации: Переменные окружения > Конфиг > Флаги
 func run() error {
-	//Проверям указан ли конфигурационный файл.
+	//Проверяем указан ли конфигурационный файл.
 	if envConfigPath, hasEnv := os.LookupEnv("CONFIG"); hasEnv {
 		flagConfigPath = envConfigPath
 	}
@@ -92,30 +101,6 @@ func run() error {
 	// Инициализация сервисов
 	shURLService := services.NewShURLService(repo)
 
-	// Инициализация обработчиков
-	shURLHandler := handlers.NewShURLHandler(shURLService, flagRedirectRouterAddr)
-
-	//Инициализация логгера
-	zapLogger, err := logger.NewLogger("Info", true)
-	if err != nil {
-		return err
-	}
-	defer zapLogger.Sync()
-
-	// Берём адрес сервера из переменной окружения. Иначе - из аргумента
-	if envServerAddr, hasEnv := os.LookupEnv("SERVER_ADDRESS"); hasEnv {
-		flagShortenerRouterAddr = normalizeAddress(envServerAddr)
-	}
-
-	// Проверка подключения к БД
-	pingFunc := func(w http.ResponseWriter, r *http.Request) {
-		if repo.PingDB() {
-			w.WriteHeader(http.StatusOK)
-		} else {
-			w.WriteHeader(http.StatusBadRequest)
-		}
-	}
-
 	//При наличии переменной окружения или наличии флага - запускаем на HTTPS.
 	if _, hasEnv := os.LookupEnv("ENABLE_HTTPS"); hasEnv {
 		flagEnableHTTPS = true
@@ -130,9 +115,83 @@ func run() error {
 		}
 	}
 
+	// Инициализация обработчиков
+	shURLHandler := handlers.NewShURLHandler(shURLService, flagRedirectRouterAddr, flagEnableHTTPS)
+
+	// Инициализация gRPC обработчиков
+	grpcHandler := grpchandlers.NewShURLHandler(shURLService, flagRedirectRouterAddr)
+
+	// Инициализация логгера
+	zapLogger, err := logger.NewLogger("Info", true)
+	if err != nil {
+		return err
+	}
+	defer zapLogger.Sync()
+
+	//Инициализация subnet whitelist
+	if trustedSubnet, hasEnv := os.LookupEnv("TRUSTED_SUBNET"); hasEnv {
+		flagTrustedSubnet = trustedSubnet
+	}
+	cidrWhiteList, err := whitelist.NewCIDRWhitelistMiddleware(flagTrustedSubnet)
+	if err != nil {
+		return err
+	}
+	// Инициализация gRPC whitelist middleware
+	grpcCIDRWhiteList, err := grpcwhitelist.NewCIDRWhitelistMiddleware(flagTrustedSubnet)
+	if err != nil {
+		return err
+	}
+
+	// Берём адрес сервера из переменной окружения. Иначе - из аргумента
+	if envServerAddr, hasEnv := os.LookupEnv("SERVER_ADDRESS"); hasEnv {
+		flagShortenerRouterAddr = normalizeHTTPAddress(envServerAddr)
+	}
+
+	// Берём адрес gRPC сервера из переменной окружения
+	if envGRPCAddr, hasEnv := os.LookupEnv("GRPC_SERVER_ADDRESS"); hasEnv {
+		flagGRPCRouterAddr = normalizeGRPCAddress(envGRPCAddr)
+	}
+
+	// Проверка подключения к БД
+	pingFunc := func(w http.ResponseWriter, r *http.Request) {
+		if repo.PingDB() {
+			w.WriteHeader(http.StatusOK)
+		} else {
+			w.WriteHeader(http.StatusBadRequest)
+		}
+	}
+
 	// Канал для получения сигналов ОС
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
+
+	// Инициализация gRPC сервера с middleware
+	grpcServer := grpc.NewServer(
+		grpc.ChainUnaryInterceptor(
+			grpclogger.GRPCLoggingMiddleware(zapLogger),
+			grpcauth.GRPCAuthMiddleware(),
+			grpcCIDRWhiteList.CIDRWhitelistMiddleware("/urlshortener.URLShortener/GetStats"),
+		),
+	)
+
+	// Регистрируем gRPC сервис
+	gen.RegisterURLShortenerServer(grpcServer, grpcHandler)
+
+	// Запуск gRPC сервера
+	grpcListener, err := net.Listen("tcp", flagGRPCRouterAddr)
+	if err != nil {
+		return fmt.Errorf("failed to listen gRPC: %w", err)
+	}
+	defer grpcListener.Close()
+
+	// Запускаем gRPC сервер в горутине
+	grpcServerErr := make(chan error, 1)
+	go func() {
+		fmt.Printf("Running gRPC server on %s\n", flagGRPCRouterAddr)
+		if err := grpcServer.Serve(grpcListener); err != nil && err != grpc.ErrServerStopped {
+			grpcServerErr <- fmt.Errorf("gRPC server error: %w", err)
+		}
+	}()
 
 	// Сравниваем нормализованные адреса. Если адрес один - запускаем то и то на одном порту
 	if flagShortenerRouterAddr == flagRedirectRouterAddr {
@@ -147,17 +206,14 @@ func run() error {
 		r.Post("/api/shorten", shURLHandler.ShortenURL)
 		r.Post("/api/shorten/batch", shURLHandler.ShortenURLsBatch)
 		r.Post("/", shURLHandler.ShortenURL)
+		r.With(cidrWhiteList.CIDRWhitelistMiddleware()).Get("/api/internal/stats", shURLHandler.GetStats)
 
-		server := &http.Server{
-			Addr:    flagShortenerRouterAddr,
-			Handler: r,
-		}
+		server := createHTTPServer(flagShortenerRouterAddr, r, tlsConfig)
 
 		// Запуск сервера в горутине
 		serverErr := make(chan error, 1)
 		go func() {
-			fmt.Println("Starting server...")
-			serverErr <- runServer(server, tlsConfig)
+			serverErr <- runHTTPServer(server)
 		}()
 
 		// Ожидание сигнала остановки или ошибки сервера
@@ -166,9 +222,11 @@ func run() error {
 			fmt.Println("Received shutdown signal")
 		case err := <-serverErr:
 			fmt.Printf("Server error: %v\n", err)
+		case err := <-grpcServerErr:
+			fmt.Printf("gRPC server error: %v\n", err)
 		}
 
-		return gracefulShutdown(shURLService, server)
+		return gracefulShutdown(shURLService, server, grpcServer)
 	}
 
 	// Если разные - разные сервера для разных хэндлеров в разных горутинах
@@ -188,22 +246,21 @@ func run() error {
 	shortenerRouter.Post("/api/shorten/batch", shURLHandler.ShortenURLsBatch)
 	shortenerRouter.Get("/ping", pingFunc)
 	shortenerRouter.Post("/", shURLHandler.ShortenURL)
+	shortenerRouter.With(cidrWhiteList.CIDRWhitelistMiddleware()).Get("/api/internal/stats", shURLHandler.GetStats)
 
 	// Создаем серверы
-	redirectServer := createServer(flagRedirectRouterAddr, redirectRouter, tlsConfig)
-	shortenerServer := createServer(flagShortenerRouterAddr, shortenerRouter, tlsConfig)
+	redirectServer := createHTTPServer(flagRedirectRouterAddr, redirectRouter, tlsConfig)
+	shortenerServer := createHTTPServer(flagShortenerRouterAddr, shortenerRouter, tlsConfig)
 
 	// Запуск серверов в горутинах
 	serverErr := make(chan error, 2)
 
 	go func() {
-		fmt.Println("Starting short-to-long server...")
-		serverErr <- runServer(redirectServer, tlsConfig)
+		serverErr <- runHTTPServer(redirectServer)
 	}()
 
 	go func() {
-		fmt.Println("Starting URL shortener...")
-		serverErr <- runServer(shortenerServer, tlsConfig)
+		serverErr <- runHTTPServer(shortenerServer)
 	}()
 
 	// Ожидание сигнала остановки или ошибки сервера
@@ -212,13 +269,15 @@ func run() error {
 		fmt.Println("Received shutdown signal")
 	case err := <-serverErr:
 		fmt.Printf("Server error: %v\n", err)
+	case err := <-grpcServerErr:
+		fmt.Printf("gRPC server error: %v\n", err)
 	}
 
-	return gracefulShutdown(shURLService, redirectServer, shortenerServer)
+	return gracefulShutdown(shURLService, redirectServer, shortenerServer, grpcServer)
 }
 
 // createServer - создает и настраивает HTTP сервер
-func createServer(addr string, handler http.Handler, tlsConfig *tls.Config) *http.Server {
+func createHTTPServer(addr string, handler http.Handler, tlsConfig *tls.Config) *http.Server {
 	server := &http.Server{
 		Addr:    addr,
 		Handler: handler,
@@ -232,31 +291,34 @@ func createServer(addr string, handler http.Handler, tlsConfig *tls.Config) *htt
 }
 
 // runServer - запускает сервер в горутине и возвращает канал с ошибкой
-func runServer(server *http.Server, tlsConfig *tls.Config) error {
+func runHTTPServer(server *http.Server) error {
 	fmt.Printf("Running server on %s\n", server.Addr)
-
-	if tlsConfig != nil {
-		server.TLSConfig = tlsConfig
-		return server.ListenAndServeTLS("", "")
-	}
-
 	return server.ListenAndServe()
 }
 
 // gracefulShutdown - graceful shutdown приложения
-func gracefulShutdown(service *services.ShURLService, servers ...*http.Server) error {
+func gracefulShutdown(service *services.ShURLService, servers ...interface{}) error {
 	fmt.Println("Starting graceful shutdown...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	// Останавливаем HTTP сервера
+	// Останавливаем серверы
 	for i, server := range servers {
-		if server != nil {
-			if err := server.Shutdown(ctx); err != nil {
-				fmt.Printf("Server %d shutdown error: %v\n", i, err)
-			} else {
-				fmt.Printf("Server %d stopped\n", i)
+		switch s := server.(type) {
+		case *http.Server:
+			if s != nil {
+				if err := s.Shutdown(ctx); err != nil {
+					fmt.Printf("HTTP server %d shutdown error: %v\n", i, err)
+				} else {
+					fmt.Printf("HTTP server %d stopped\n", i)
+				}
+			}
+		case *grpc.Server:
+			if s != nil {
+				fmt.Printf("Stopping gRPC server...\n")
+				s.GracefulStop()
+				fmt.Printf("gRPC server stopped\n")
 			}
 		}
 	}

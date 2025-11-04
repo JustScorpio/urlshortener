@@ -19,6 +19,7 @@ func parseAppConfig(configPath string) error {
 		FileStoragePath string `json:"file_storage_path"`
 		DatabaseDSN     string `json:"database_dsn"`
 		EnableHTTPS     bool   `json:"enable_https"`
+		TrustedSubnet   string `json:"trusted_subnet"`
 	}
 
 	err = json.Unmarshal(content, &appConfig)
@@ -31,6 +32,7 @@ func parseAppConfig(configPath string) error {
 	flagDBFilePath = appConfig.FileStoragePath
 	flagDBConnStr = appConfig.DatabaseDSN
 	flagEnableHTTPS = appConfig.EnableHTTPS
+	flagTrustedSubnet = appConfig.TrustedSubnet
 
 	return nil
 }

@@ -12,7 +12,7 @@ import (
 	"testing"
 
 	"github.com/JustScorpio/urlshortener/internal/customcontext"
-	"github.com/JustScorpio/urlshortener/internal/handlers"
+	"github.com/JustScorpio/urlshortener/internal/http/handlers"
 	"github.com/JustScorpio/urlshortener/internal/models/dtos"
 	"github.com/JustScorpio/urlshortener/internal/repository/inmemory"
 	"github.com/JustScorpio/urlshortener/internal/services"
@@ -24,7 +24,7 @@ import (
 func TestShURLHandler_GetFullURL(t *testing.T) {
 	mockRepo := inmemory.NewInMemoryRepository()
 	service := services.NewShURLService(mockRepo)
-	handler := handlers.NewShURLHandler(service, "localhost:8080")
+	handler := handlers.NewShURLHandler(service, "localhost:8080", false)
 
 	// Setup test data
 	ctx := context.Background()
@@ -89,7 +89,7 @@ func TestShURLHandler_GetFullURL(t *testing.T) {
 func TestShURLHandler_ShortenURL(t *testing.T) {
 	mockRepo := inmemory.NewInMemoryRepository()
 	service := services.NewShURLService(mockRepo)
-	handler := handlers.NewShURLHandler(service, "localhost:8080")
+	handler := handlers.NewShURLHandler(service, "localhost:8080", false)
 
 	t.Run("successful creation with text content type", func(t *testing.T) {
 		body := strings.NewReader("https://example_text.com")
@@ -183,7 +183,7 @@ func TestShURLHandler_ShortenURL(t *testing.T) {
 func TestShURLHandler_ShortenURLsBatch(t *testing.T) {
 	mockRepo := inmemory.NewInMemoryRepository()
 	service := services.NewShURLService(mockRepo)
-	handler := handlers.NewShURLHandler(service, "localhost:8080")
+	handler := handlers.NewShURLHandler(service, "localhost:8080", false)
 
 	t.Run("successful batch creation", func(t *testing.T) {
 		batch := []map[string]string{
@@ -249,7 +249,7 @@ func TestShURLHandler_ShortenURLsBatch(t *testing.T) {
 func TestShURLHandler_GetShURLsByUserID(t *testing.T) {
 	mockRepo := inmemory.NewInMemoryRepository()
 	service := services.NewShURLService(mockRepo)
-	handler := handlers.NewShURLHandler(service, "localhost:8080")
+	handler := handlers.NewShURLHandler(service, "localhost:8080", false)
 
 	// Setup test data
 	ctx := context.Background()
@@ -313,7 +313,7 @@ func TestShURLHandler_GetShURLsByUserID(t *testing.T) {
 func TestShURLHandler_DeleteMany(t *testing.T) {
 	mockRepo := inmemory.NewInMemoryRepository()
 	service := services.NewShURLService(mockRepo)
-	handler := handlers.NewShURLHandler(service, "localhost:8080")
+	handler := handlers.NewShURLHandler(service, "localhost:8080", false)
 
 	// Setup test data
 	ctx := context.Background()
