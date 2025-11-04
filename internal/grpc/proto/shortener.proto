@@ -1,0 +1,79 @@
+syntax = "proto3";
+
+package gen;
+
+option go_package = "./internal/grpc/gen";
+
+service URLShortener {
+  rpc GetFullURL(GetFullURLRequest) returns (GetFullURLResponse);
+  rpc ShortenURL(ShortenURLRequest) returns (ShortenURLResponse);
+  rpc ShortenURLsBatch(ShortenURLsBatchRequest) returns (ShortenURLsBatchResponse);
+  rpc GetShURLsByUserID(GetShURLsByUserIDRequest) returns (GetShURLsByUserIDResponse);
+  rpc GetStats(GetStatsRequest) returns (GetStatsResponse);
+  rpc DeleteMany(DeleteManyRequest) returns (DeleteManyResponse);
+}
+
+message GetFullURLRequest {
+  string token = 1;
+}
+
+message GetFullURLResponse {
+  string long_url = 1;
+}
+
+message ShortenURLRequest {
+  string long_url = 1;
+  // user_id передается через контекст
+}
+
+message ShortenURLResponse {
+  string short_url = 1;
+}
+
+// ShortenURLsBatch - соответствует ShortenURLsBatch
+message ShortenURLsBatchRequest {
+  repeated BatchRequestItem urls = 1;
+}
+
+message BatchRequestItem {
+  string correlation_id = 1;
+  string original_url = 2;
+}
+
+message ShortenURLsBatchResponse {
+  repeated BatchResponseItem urls = 1;
+}
+
+message BatchResponseItem {
+  string correlation_id = 1;
+  string short_url = 2;
+}
+
+message GetShURLsByUserIDRequest {
+  // user_id передается через контекст
+}
+
+message GetShURLsByUserIDResponse {
+  repeated UserURLItem urls = 1;
+}
+
+message UserURLItem {
+  string short_url = 1;
+  string original_url = 2;
+}
+
+message GetStatsRequest {}
+
+message GetStatsResponse {
+  int32 urls_num = 1;
+  int32 users_num = 2;
+}
+
+message DeleteManyRequest {
+  repeated string tokens = 1;
+  // user_id передается через контекст
+}
+
+message DeleteManyResponse {
+  // пустой ответ
+}

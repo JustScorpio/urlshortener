@@ -16,15 +16,22 @@ import (
 
 // ShURLHandler - обработчик входящих запросов
 type ShURLHandler struct {
-	service       *services.ShURLService
-	shURLBaseAddr string
+	service      *services.ShURLService
+	baseURL      string
+	protocolPart string // http:// или https://
 }
 
 // NewShURLHandler - инициализация хэндлера
-func NewShURLHandler(service *services.ShURLService, shURLBaseAddr string) *ShURLHandler {
+func NewShURLHandler(service *services.ShURLService, baseURL string, enableHTTPS bool) *ShURLHandler {
+	var protocolPart = "http://"
+	if enableHTTPS {
+		protocolPart = "https://"
+	}
+
 	return &ShURLHandler{
-		service:       service,
-		shURLBaseAddr: shURLBaseAddr,
+		service:      service,
+		baseURL:      baseURL,
+		protocolPart: protocolPart,
 	}
 }
 
@@ -124,7 +131,7 @@ func (h *ShURLHandler) ShortenURL(w http.ResponseWriter, r *http.Request) {
 	var responseBody []byte
 	//Если в при создании возникла ошибка, shurl может быть пуст => тело тоже пусто
 	if shurl != nil {
-		shortURL := "http://" + h.shURLBaseAddr + "/" + shurl.Token
+		shortURL := h.protocolPart + h.baseURL + "/" + shurl.Token
 
 		//Если Header "Accept" == "application/json" - возвращаем ввиде json
 		acceptHeader := r.Header.Get("Accept")
@@ -215,7 +222,7 @@ func (h *ShURLHandler) ShortenURLsBatch(w http.ResponseWriter, r *http.Request) 
 
 		respData = append(respData, respItem{
 			ID:  reqItem.ID,
-			URL: "http://" + h.shURLBaseAddr + "/" + shurl.Token,
+			URL: h.protocolPart + h.baseURL + "/" + shurl.Token,
 		})
 	}
 
@@ -273,7 +280,7 @@ func (h *ShURLHandler) GetShURLsByUserID(w http.ResponseWriter, r *http.Request)
 
 	for _, shURL := range shURLs {
 		respData = append(respData, respItem{
-			ShortURL:    "http://" + h.shURLBaseAddr + "/" + shURL.Token,
+			ShortURL:    h.protocolPart + h.baseURL + "/" + shURL.Token,
 			OriginalURL: shURL.LongURL,
 		})
 	}

@@ -10,6 +10,8 @@ require (
 	github.com/jaevor/go-nanoid v1.4.0
 	github.com/stretchr/testify v1.8.4
 	golang.org/x/tools v0.37.0
+	google.golang.org/grpc v1.76.0
+	google.golang.org/protobuf v1.36.10
 	modernc.org/sqlite v1.37.0
 )
 
@@ -18,12 +20,14 @@ require (
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
-	golang.org/x/crypto v0.38.0 // indirect
+	golang.org/x/crypto v0.42.0 // indirect
 	golang.org/x/exp/typeparams v0.0.0-20231108232855-2478ac86f678 // indirect
 	golang.org/x/mod v0.28.0 // indirect
+	golang.org/x/net v0.44.0 // indirect
 	golang.org/x/sync v0.17.0 // indirect
-	golang.org/x/text v0.25.0 // indirect
+	golang.org/x/text v0.29.0 // indirect
 	golang.org/x/tools/go/expect v0.1.1-deprecated // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20250804133106-a7a43d27e69b // indirect
 )
 
 require (
