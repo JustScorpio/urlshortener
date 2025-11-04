@@ -14,22 +14,24 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-type GRPCHandler struct {
+// ShURLHandler - обработчик входящих запросов grpc
+type ShURLHandler struct {
 	gen.UnimplementedURLShortenerServer
 	service *services.ShURLService
 	baseURL string
 	// protocolPart string //gRPC не имеет части http:// или https://
 }
 
-func NewGRPCHandler(service *services.ShURLService, baseURL string) *GRPCHandler {
-	return &GRPCHandler{
+// NewShURLHandler - инициализация хэндлера
+func NewShURLHandler(service *services.ShURLService, baseURL string) *ShURLHandler {
+	return &ShURLHandler{
 		service: service,
 		baseURL: baseURL,
 	}
 }
 
 // GetFullURL - получить полный адрес
-func (h *GRPCHandler) GetFullURL(ctx context.Context, req *gen.GetFullURLRequest) (*gen.GetFullURLResponse, error) {
+func (h *ShURLHandler) GetFullURL(ctx context.Context, req *gen.GetFullURLRequest) (*gen.GetFullURLResponse, error) {
 	if req.Token == "" {
 		return nil, status.Error(codes.InvalidArgument, "token is required")
 	}
@@ -51,7 +53,7 @@ func (h *GRPCHandler) GetFullURL(ctx context.Context, req *gen.GetFullURLRequest
 }
 
 // ShortenURL создает короткую ссылку
-func (h *GRPCHandler) ShortenURL(ctx context.Context, req *gen.ShortenURLRequest) (*gen.ShortenURLResponse, error) {
+func (h *ShURLHandler) ShortenURL(ctx context.Context, req *gen.ShortenURLRequest) (*gen.ShortenURLResponse, error) {
 	if req.LongUrl == "" {
 		return nil, status.Error(codes.InvalidArgument, "long_url is required")
 	}
@@ -83,7 +85,7 @@ func (h *GRPCHandler) ShortenURL(ctx context.Context, req *gen.ShortenURLRequest
 }
 
 // ShortenURLsBatch создает несколько коротких ссылок
-func (h *GRPCHandler) ShortenURLsBatch(ctx context.Context, req *gen.ShortenURLsBatchRequest) (*gen.ShortenURLsBatchResponse, error) {
+func (h *ShURLHandler) ShortenURLsBatch(ctx context.Context, req *gen.ShortenURLsBatchRequest) (*gen.ShortenURLsBatchResponse, error) {
 	if len(req.Urls) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "urls cannot be empty")
 	}
@@ -123,7 +125,7 @@ func (h *GRPCHandler) ShortenURLsBatch(ctx context.Context, req *gen.ShortenURLs
 }
 
 // GetShURLsByUserID возвращает ссылки пользователя
-func (h *GRPCHandler) GetShURLsByUserID(ctx context.Context, req *gen.GetShURLsByUserIDRequest) (*gen.GetShURLsByUserIDResponse, error) {
+func (h *ShURLHandler) GetShURLsByUserID(ctx context.Context, req *gen.GetShURLsByUserIDRequest) (*gen.GetShURLsByUserIDResponse, error) {
 	userID := customcontext.GetUserID(ctx)
 	userURLs, err := h.service.GetAllShURLsByUserID(ctx, userID)
 	if err != nil {
@@ -154,7 +156,7 @@ func (h *GRPCHandler) GetShURLsByUserID(ctx context.Context, req *gen.GetShURLsB
 }
 
 // GetStats возвращает статистику
-func (h *GRPCHandler) GetStats(ctx context.Context, req *gen.GetStatsRequest) (*gen.GetStatsResponse, error) {
+func (h *ShURLHandler) GetStats(ctx context.Context, req *gen.GetStatsRequest) (*gen.GetStatsResponse, error) {
 	stats, err := h.service.GetStats(ctx)
 	if err != nil {
 		grpcCode := codes.Internal
@@ -174,7 +176,7 @@ func (h *GRPCHandler) GetStats(ctx context.Context, req *gen.GetStatsRequest) (*
 }
 
 // DeleteMany удаляет ссылки пользователя
-func (h *GRPCHandler) DeleteMany(ctx context.Context, req *gen.DeleteManyRequest) (*gen.DeleteManyResponse, error) {
+func (h *ShURLHandler) DeleteMany(ctx context.Context, req *gen.DeleteManyRequest) (*gen.DeleteManyResponse, error) {
 
 	userID := customcontext.GetUserID(ctx)
 	if userID == "" {

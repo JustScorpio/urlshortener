@@ -119,7 +119,7 @@ func run() error {
 	shURLHandler := handlers.NewShURLHandler(shURLService, flagRedirectRouterAddr, flagEnableHTTPS)
 
 	// Инициализация gRPC обработчиков
-	grpcHandler := grpchandlers.NewGRPCHandler(shURLService, flagRedirectRouterAddr)
+	grpcHandler := grpchandlers.NewShURLHandler(shURLService, flagRedirectRouterAddr)
 
 	// Инициализация логгера
 	zapLogger, err := logger.NewLogger("Info", true)
@@ -208,12 +208,12 @@ func run() error {
 		r.Post("/", shURLHandler.ShortenURL)
 		r.With(cidrWhiteList.CIDRWhitelistMiddleware()).Get("/api/internal/stats", shURLHandler.GetStats)
 
-		server := createHttpServer(flagShortenerRouterAddr, r, tlsConfig)
+		server := createHTTPServer(flagShortenerRouterAddr, r, tlsConfig)
 
 		// Запуск сервера в горутине
 		serverErr := make(chan error, 1)
 		go func() {
-			serverErr <- runHttpServer(server)
+			serverErr <- runHTTPServer(server)
 		}()
 
 		// Ожидание сигнала остановки или ошибки сервера
@@ -249,18 +249,18 @@ func run() error {
 	shortenerRouter.With(cidrWhiteList.CIDRWhitelistMiddleware()).Get("/api/internal/stats", shURLHandler.GetStats)
 
 	// Создаем серверы
-	redirectServer := createHttpServer(flagRedirectRouterAddr, redirectRouter, tlsConfig)
-	shortenerServer := createHttpServer(flagShortenerRouterAddr, shortenerRouter, tlsConfig)
+	redirectServer := createHTTPServer(flagRedirectRouterAddr, redirectRouter, tlsConfig)
+	shortenerServer := createHTTPServer(flagShortenerRouterAddr, shortenerRouter, tlsConfig)
 
 	// Запуск серверов в горутинах
 	serverErr := make(chan error, 2)
 
 	go func() {
-		serverErr <- runHttpServer(redirectServer)
+		serverErr <- runHTTPServer(redirectServer)
 	}()
 
 	go func() {
-		serverErr <- runHttpServer(shortenerServer)
+		serverErr <- runHTTPServer(shortenerServer)
 	}()
 
 	// Ожидание сигнала остановки или ошибки сервера
@@ -277,7 +277,7 @@ func run() error {
 }
 
 // createServer - создает и настраивает HTTP сервер
-func createHttpServer(addr string, handler http.Handler, tlsConfig *tls.Config) *http.Server {
+func createHTTPServer(addr string, handler http.Handler, tlsConfig *tls.Config) *http.Server {
 	server := &http.Server{
 		Addr:    addr,
 		Handler: handler,
@@ -291,7 +291,7 @@ func createHttpServer(addr string, handler http.Handler, tlsConfig *tls.Config) 
 }
 
 // runServer - запускает сервер в горутине и возвращает канал с ошибкой
-func runHttpServer(server *http.Server) error {
+func runHTTPServer(server *http.Server) error {
 	fmt.Printf("Running server on %s\n", server.Addr)
 	return server.ListenAndServe()
 }
